@@ -1,0 +1,92 @@
+C51 COMPILER V3.40,  BHC                                                                   29/06/98  11:34:28  PAGE 1   
+
+
+DOS C51 COMPILER V3.40, COMPILATION OF MODULE BHC
+OBJECT MODULE PLACED IN BHC.OBJ
+COMPILER INVOKED BY: C:\C51\BIN\C51.EXE BHC.C LA
+
+stmt level    source
+
+   1          /*			Copyright Q Solutions				*/
+   2          /*	File:		bhc.c						*/
+   3          /*	Programmer:	MoT						*/
+   4          /*	Project:	Borehole Controller				*/
+   5          /*	Module:		Main Controller Module				*/
+   6          /*									*/
+   7          /*			History						*/
+   8          /* 00:08 21/04/1997 	Written from scratch				*/
+   9          /* 11:29am 07-01-1997 	Source lines: 1262	(not incl library)	*/
+  10          /* 11:41am 07-13-1997  	Source lines: 1505	(library: 1464 lines)	*/
+  11          /*			First beta release: V0.01			*/
+  12          /* 00:39 01/05/1998 	MODBUS Driver Added				*/
+  13          /*									*/
+  14          
+  15          /*			Compiler Directives				*/
+  16          #pragma		ROM (COMPACT)
+  17          #pragma		LARGE
+  18          /*			Standard Library Header Files			*/
+  19          #include	<stdio.h>
+  20          #include	<reg552.h>
+  21          /*			uNode Library Header Files			*/
+  22          #include	<types.h>		/* byte, uint, and ulong defines*/
+  23          #include	<rtc.h>			/* Real time clock routines	*/
+  24          #include	<time.h>		/* Time related routines	*/
+  25          #include	<ce.h>			/* Control Engine routines	*/
+  26          #include	<wdog.h>		/* Watchdog refresh routine	*/
+  27          #include	"db.c"			/* Database logging routines	*/
+  28          #include	"ui.c"			/* Include User Interface Code	*/
+  29          #include	"scada.c"		/* Include SCADA Interface Code	*/
+  30          
+  31          sbit BHC_TEST= 0xC6;			/* UI Timing Test Point		*/
+  32          
+  33          void	initialise	( )		/* Initialise Hardware		*/
+  34          {
+  35   1      	EA=		1;		/* Enable Global Interrupt	*/
+  36   1      	BHC_TEST=	0;		/* Clear UI Timing Test point	*/
+  37   1      	init_ce		( );		/* Initialise Control Engine	*/
+  38   1      	init_serial	( B9600 );	/* Initialise Serial Port	*/
+  39   1      	init_modb	( MADDR );	/* Initialise Modbus database	*/
+  40   1      	init_iic	( BHC_ADR );	/* Initialise I2C Bus 		*/
+  41   1      	init_rtc	( );		/* Initialise Real Time Clock	*/
+  42   1      	init_rkpad	( );		/* Initialise I2C Keypad	*/
+  43   1      	init_i2clcd	( );		/* Initialise I2C Bus LCD	*/
+  44   1      	ce_sig		( S_PT );	/* Toggle Power LED		*/
+  45   1      	get_time	( &ce_t0 );	/* Store CE startup time	*/
+  46   1      }
+  47          
+  48          void	main	( void )		/* Main Loop			*/
+  49          {
+  50   1      	initialise	( );		/* Set up drivers, sign on	*/
+  51   1      	while		( 1 )		/* Repeat Forever		*/
+  52   1      	{
+  53   2      		if	( test_rkey( ))	/* Remote keypress		*/
+  54   2      			proc_rkey ( );	/* Process input		*/
+  55   2      		if	( db_flag )	/* Data Logger Timer		*/
+  56   2      			proc_db	( );
+  57   2      		if	( modb_new( ) )	/* Modbus frame received	*/
+  58   2      			proc_mb	( );
+  59   2      		if	( ui_flag )	/* Display refresh period	*/
+C51 COMPILER V3.40,  BHC                                                                   29/06/98  11:34:28  PAGE 2   
+
+  60   2      		{
+  61   3      			BHC_TEST= 1;	/* UI Timing test point start	*/
+  62   3      			wdog	( 0 );	/* Watchdog: (CE and UI running)*/
+  63   3      			ui_update ( );	/* Refresh info display		*/
+  64   3      			BHC_TEST= 0;	/* UI Timing test point end	*/
+  65   3      		}
+  66   2      	}
+  67   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   3342    ----
+   CONSTANT SIZE    =    612    ----
+   XDATA SIZE       =  30117      23
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      3       1
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

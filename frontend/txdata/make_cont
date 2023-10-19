@@ -1,0 +1,17 @@
+######################################################
+#
+#    compile the control make control program
+#
+######################################################
+
+#SHELL= /bin/sh
+
+#INC = $(INCLUDE)/msg.h
+#LIBRARAY =
+
+control : control.c
+	echo
+	cc -g -Zi -lx control.c -lm -o $@ 
+#	cp control.c $TEST
+#	cp control $TEST
+#	cp control ../bin

@@ -1,0 +1,89 @@
+C51 COMPILER V3.40,  BHC                                                                   30/04/98  18:15:11  PAGE 1   
+
+
+DOS C51 COMPILER V3.40, COMPILATION OF MODULE BHC
+OBJECT MODULE PLACED IN BHC.OBJ
+COMPILER INVOKED BY: C:\C51\BIN\C51.EXE BHC.C CODE SYMBOLS DEBUG OBJECTEXTEND
+
+stmt level    source
+
+   1          /*			Copyright Q Solutions				*/
+   2          /*	File:		bhc.c						*/
+   3          /*	Programmer:	MoT						*/
+   4          /*	Project:	Borehole Controller				*/
+   5          /*	Module:		Main Controller Module				*/
+   6          /*									*/
+   7          /*			History						*/
+   8          /* 00:08 21/04/1997 	Written from scratch				*/
+   9          /* 11:29am 07-01-1997 	Source lines: 1262	(not incl library)	*/
+  10          /* 11:41am 07-13-1997  	Source lines: 1505	(library: 1464 lines)	*/
+  11          /*			First beta release: V0.01			*/
+  12          /*									*/
+  13          
+  14          /*			Compiler Directives				*/
+  15          #pragma		ROM (COMPACT)
+  16          #pragma		LARGE
+  17          /*			Standard Library Header Files			*/
+  18          #include	<stdio.h>
+  19          #include	<reg552.h>
+  20          /*			uNode Library Header Files			*/
+  21          typedef	unsigned int uint;		/* Optimise for size & speed:	*/
+  22          typedef	unsigned long ulong;		/* Optimise for size & speed:	*/
+  23          #ifndef BYTETYPE
+  24          #define BYTETYPE
+  25          typedef	unsigned char byte;		/* Use unsigned char and int	*/
+  26          #endif
+  27          #include	<rtc.h>			/* Real time clock routines	*/
+  28          #include	<time.h>		/* Time related routines	*/
+  29          #include	<ce.h>			/* Control Engine routines	*/
+  30          #include	<wdog.h>		/* Watchdog refresh routine	*/
+  31          #include	"db.c"			/* Database logging routines	*/
+  32          #include	"ui.c"			/* Include User Interface Code	*/
+  33          #include	"scada.c"		/* Include SCADA Interface Code	*/
+*** ERROR 141 IN LINE 22 OF E:\QSOLUTIO\QTRON\NODELIB\INC\MODBUS.H: syntax error near 'uint'
+*** WARNING 317 IN LINE 38 OF scada.c: macro 'MB_SIZE': invalid redefinition
+  34          
+  35          sbit BHC_TEST= 0xC6;			/* UI Timing Test Point		*/
+  36          
+  37          void	initialise	( )		/* Initialise Hardware		*/
+  38          {
+  39   1      	EA=		1;		/* Enable Global Interrupt	*/
+  40   1      	BHC_TEST=	0;		/* Clear UI Timing Test point	*/
+  41   1      //	PCON|=		0x80;		/* Double Baud Rate		*/
+  42   1      	init_ce		( );		/* Initialise Control Engine	*/
+  43   1      	init_serial	( B19200 );	/* Initialise Serial Port	*/
+  44   1      	init_modb	( d_rd, d_wr,1);/* Initialise Modbus driver	*/
+*** WARNING 206 IN LINE 44 OF BHC.C: 'init_modb': missing function-prototype
+*** ERROR 267 IN LINE 44 OF BHC.C: 'init_modb': requires ANSI-style prototype
+  45   1      	init_iic	( BHC_ADR );	/* Initialise I2C Bus 		*/
+  46   1      	init_rtc	( );		/* Initialise Real Time Clock	*/
+  47   1      	init_rkpad	( );		/* Initialise I2C Keypad	*/
+  48   1      	init_i2clcd	( );		/* Initialise I2C Bus LCD	*/
+  49   1      	ce_sig		( S_PT );	/* Toggle Power LED		*/
+  50   1      	get_time	( &ce_t0 );	/* Store CE startup time	*/
+  51   1      }
+  52          
+  53          void	main	( void )		/* Main Loop			*/
+  54          {
+  55   1      	initialise	( );		/* Set up drivers, sign on	*/
+C51 COMPILER V3.40,  BHC                                                                   30/04/98  18:15:11  PAGE 2   
+
+  56   1      	while		( 1 )		/* Repeat Forever		*/
+  57   1      	{
+  58   2      		if	( test_rkey( ))	/* Remote keypress		*/
+  59   2      			proc_rkey ( );	/* Process input		*/
+  60   2      		if	( db_flag )	/* Data Logger Timer		*/
+  61   2      			proc_db	( );
+  62   2      		if	( s_rnew )	/* Modbus frame received	*/
+  63   2      			proc_mb	( );
+  64   2      		if	( ui_flag )	/* Display refresh period	*/
+  65   2      		{
+  66   3      			BHC_TEST= 1;	/* UI Timing test point start	*/
+  67   3      			wdog	( 0 );	/* Watchdog: (CE and UI running)*/
+  68   3      			ui_update ( );	/* Refresh info display		*/
+  69   3      			BHC_TEST= 0;	/* UI Timing test point end	*/
+  70   3      		}
+  71   2      	}
+  72   1      }
+
+C51 COMPILATION COMPLETE.  2 WARNING(S),  2 ERROR(S)

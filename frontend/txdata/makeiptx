@@ -1,0 +1,5 @@
+echo $BUSY
+echo Compiling testiptx
+make -f make_iptx -s
+echo done
+echo

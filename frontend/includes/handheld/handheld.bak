@@ -1,0 +1,596 @@
+
+#include "c:\include\handheld\handheld.h"
+#define DENI
+
+
+#define LOOPIES 1090
+typedef unsigned char Byte;		/* define Byte type */
+typedef unsigned int  Int;		/* define Int type */
+typedef unsigned long Long;		/* define Long type */
+/** ********************************************************************* **
+
+		CRYSTALD.C
+
+		This file consists of the following :-
+
+			All the drivers for the follpowing displays :-
+
+				RS - 585-084
+				RS - 585-090
+				RS - 585-107
+				RS - 585-113
+				RS - 585-129
+
+			The interface and lookup tables for a MATICS key pad
+
+		Version - 0
+		Date		- 12/04/92
+		By      - E. Coetzee
+
+** ********************************************************************* **/
+
+/** ********************************************************************* **
+
+		Controle charachters -
+
+				These charchters will vary depending the digital connection
+** ********************************************************************* **/
+
+/** ********************************************************************* **
+
+	INCLUDE FILES
+
+** ********************************************************************* **/
+
+#include <dos.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+#include <bios.h>
+#include <time.h>
+
+#include "c:\include\serial\serial.h"
+#include "c:\include\ioboard\ioboard.h"
+#include "c:\include\handheld\handheld.h"
+#include "c:\rem_cont\vectron1.h"
+
+extern unsigned char MODE;
+
+/** ********************************************************************* **
+
+	Print_lcd (char *disp_string);
+
+	This routine sendsa string, character by character to the display
+
+	Requirments :-
+
+		outportb (int ADDR, char DATA);
+			The outportb outputs a byte of DATA to the address specified by ADDR
+
+** ********************************************************************* **/
+#ifdef DENIS
+Print_lcd( char *disp_string) {
+
+	int counter, t_c;
+
+
+	RTN_HOME;
+/**  ----    shift only the cursor    ---- **/
+	for ( counter=0;counter<strlen (disp_string);counter++) {
+/** set E to 0 or !E; RS to Data register R/W = W **/
+		outportb ( CR, 0x5f);
+		unsiged int KKK;
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+		if ( disp_string[counter] != '\n')
+			outportb ( DR, ~disp_string[counter]);	/** send 0x38 == 2line display **/
+		outportb ( CR, 0x60);
+/** set E to 0 or !E; RS to Controle register R/W = W **/
+		unsiged int KKK;
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+		if( counter == 16)
+		{
+			for ( t_c =0; t_c < 23; t_c++)
+			{
+				outportb ( CR, 0x5f);	/** set E to 0 or !E; RS to Controle register R/W = W **/
+		unsiged int KKK;
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+				outportb ( DR, ~' ');	/** send 0x38 == 2line display **/
+				outportb ( CR, 0x60);	/** set E to 0 or !E; RS to Controle register R/W = W **/
+		unsiged int KKK;
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+			}
+		}
+	}
+}
+
+/** ********************************************************************* **
+
+	Init_lcd ();
+
+	This routine initialize the display to the following :-
+
+		Cursor		:- Flashing character.
+		Lines			:- Two lines of 40 characters.
+		Increment	:- Auto increment by 1 after a char display.
+		Shift			:- Shift the cursor to the right.
+		Interface	:- Eight bit data inter face.
+
+	Requirements :-
+
+		CLR_DISP;			/** makros defined in the INCLUDE.H file **/
+		WAIT1;				/** makros defined in the INCLUDE.H file **/
+
+** ********************************************************************* **/
+
+init_lcd() {
+	int counter;
+
+
+/** ----  reset the display  ---- **/
+
+	for ( counter =0; counter <2; counter++) {
+		outportb ( CR, 0xcf);	/** set RS, R/W to 0 **/
+		outportb ( DR, 0xc0);	/** set db7,db6 to 0 and db5,db4 to 0 **/
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+/*		delay(5);*/
+		outportb ( CR, 0xff);	/** set RS, R/W to 0 & E to 0 **/
+		unsiged int KKK;
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+	}
+	outportb ( CR, 0xcf);	/** set RS, R/W to 0 **/
+	outportb ( DR, 0xC0);	/** set db7,db6 to 0 and db5,db4 to 0 **/
+		unsiged int KKK;
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+	outportb ( CR, 0xff);	/** set RS, R/W to 0 & E to 0 **/
+		unsiged int KKK;
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+
+/**  ----    select 2 line display   ---- **/
+
+	outportb ( CR, 0xcf);	/** set RS, R/W to 0 **/
+	outportb ( DR, 0xC0);	/** set db7,db6 to 0 and db5,db4,db3,db2 to 1 **/
+/*	delay(5);*/
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+	outportb ( CR, 0xff);	/** set RS, R/W to 0 & E to 0 **/
+		unsiged int KKK;
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+
+/**  ----    switch the display on    --- **/
+	outportb ( CR, 0xcf);	/** set RS, R/W to 0 **/
+	outportb ( DR, 0xf0);	/** set db7,db6 to 0 and db5,db4,db3,db2 to 1 **/
+		unsiged int KKK;
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+	outportb ( CR, 0xff);	/** set RS, R/W to 0 & E to 0 **/
+		unsiged int KKK;
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+
+/**  ---- set mode to shift cursor to the only the cursor right on entry ---- **/
+	outportb ( CR, 0xcf);	/** set RS, R/W to 0 **/
+	outportb ( DR, 0xFB);	/** set db7,db6 to 0 and db5,db4,db3,db2 to 1 **/
+		unsiged int KKK;
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+	outportb ( CR, 0xff);	/** set RS, R/W to 0 & E to 0 **/
+		unsiged int KKK;
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+
+/**  ----    return cursor to home and clear the display --- **/
+	Outport_Cbyte ( CLEARDISP, MODE);
+	Outport_Cbyte ( RTNHOME, MODE);
+/*	CLR_DISP;          */
+
+}
+
+#else
+
+Print_lcd( char *disp_string, unsigned char AND) {
+
+	int counter, t_c;
+/* 	unsigned char AND;*/
+	unsigned int KKK;
+
+	AND &=0x03;
+#ifdef DENIS
+		outportb ( CR, 0x5f);
+#else
+/*	CLR_DISP;          */
+		Outport_Cbyte ( RTNHOME, MODE| AND);
+	outportb ( CR, 0x98|0x40| AND);	/** set RS, R/W to 0 **/
+	outportb ( DR, 0xFE);	/** set db7,db6 to 0 and db5,db4,db3,db2 to 1 **/
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+	outportb ( CR, 0x90|0x40| AND);	/** set RS, R/W to 0 & E to 0 **/
+	outportb ( CR, 0x98|0x40| AND);	/** set RS, R/W to 0 **/
+	outportb ( DR, 0xFD);	/** set db7,db6 to 0 and db5,db4,db3,db2 to 1 **/
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+	outportb ( CR, 0x90|0x40| AND);	/** set RS, R/W to 0 & E to 0 **/
+#endif
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+
+/**  ----    shift only the cursor    ---- **/
+	for ( counter=0;counter<strlen (disp_string);counter++)
+	{
+/** set E to 0 or !E; RS to Data register R/W = W **/
+
+#ifdef DENIS
+		outportb ( CR, 0x5f| AND);
+#else
+		outportb ( CR, 0x88|0x40|AND);
+#endif
+
+		if ( disp_string[counter] != '\n')
+			outportb ( DR, ~disp_string[counter]);	/** send 0x38 == 2line display **/
+
+#ifdef DENIS
+		outportb ( CR, 0x50| AND);
+#else
+		outportb ( CR, 0x80|0x40| AND);
+#endif
+
+/** set E to 0 or !E; RS to Controle register R/W = W **/
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+		if( counter == 16)
+		{
+			for ( t_c =0; t_c < 23; t_c++)
+			{
+
+#ifdef DENIS
+				outportb ( CR, 0x50| AND);	/** set E to 0 or !E; RS to Controle register R/W = W **/
+#else
+	outportb ( CR, 0x88|0x40| AND);
+#endif
+
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+				outportb ( DR, ~' ');	/** send 0x38 == 2line display **/
+
+#ifdef DENIS
+				outportb ( CR, 0x50| AND);	/** set E to 0 or !E; RS to Controle register R/W = W **/
+#else
+		outportb ( CR, 0x80|0x40| AND);
+#endif
+
+/*		for ( KKK=0; KKK<LOOPIES; KKK++);*/
+			}
+		}
+	}
+#ifndef DENIS
+		outportb ( CR, 0x88|0x40|AND);
+#endif
+}
+
+/** ********************************************************************* **
+
+	Init_lcd ();
+
+	This routine initialize the display to the following :-
+
+		Cursor		:- Flashing character.
+		Lines			:- Two lines of 40 characters.
+		Increment	:- Auto increment by 1 after a char display.
+		Shift			:- Shift the cursor to the right.
+		Interface	:- Eight bit data inter face.
+
+	Requirements :-
+
+		CLR_DISP;			/** makros defined in the INCLUDE.H file **/
+		WAIT1;				/** makros defined in the INCLUDE.H file **/
+
+** ********************************************************************* **/
+
+init_lcd() {
+	int counter;
+	unsigned int KKK;
+
+
+/** ----  reset the display  ---- **/
+
+/*
+for(;;)
+{
+	outportb ( CR, 0xff);	/** set RS, R/W to 0 & E to 0 **/
+	outportb ( DR, 0xff);	/** set RS, R/W to 0 & E to 0 **/
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+	outportb ( CR, 0x00);	/** set RS, R/W to 0 & E to 0 **/
+	outportb ( DR, 0x00);	/** set RS, R/W to 0 & E to 0 **/
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+}
+*/
+
+
+
+	outportb ( CR, 0xff);	/** set RS, R/W to 0 & E to 0 **/
+	for ( counter =0; counter <2; counter++) {
+
+		outportb ( CR, 0x98|0x40);	/** set RS, R/W to 0 **/
+		outportb ( DR, 0xC0);	/** set db7,db6 to 0 and db5,db4 to 0 **/
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+		outportb ( CR, 0x90|0x40);	/** set RS, R/W to 0 & E to 0 **/
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+/*		delay(5);*/
+	}
+	outportb ( CR, 0x98|0x40);	/** set RS, R/W to 0 **/
+	outportb ( DR, 0xC0);	/** set db7,db6 to 0 and db5,db4 to 0 **/
+/*		unsiged int KKK;*/
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+	outportb ( CR, 0x90|0x40);	/** set RS, R/W to 0 & E to 0 **/
+/*	delay(5);*/
+
+/**  ----    select 2 line display   ---- **/
+
+	outportb ( CR, 0x98|0x40);	/** set RS, R/W to 0 **/
+	outportb ( DR, 0xC0);	/** set db7,db6 to 0 and db5,db4,db3,db2 to 1 **/
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+/*	delay(5);*/
+	outportb ( CR, 0x90|0x40);	/** set RS, R/W to 0 & E to 0 **/
+/*		unsiged int KKK;*/
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+
+/**  ----    switch the display on    --- **/
+	outportb ( CR, 0x98|0x40);	/** set RS, R/W to 0 **/
+	outportb ( DR, 0xf0);	/** set db7,db6 to 0 and db5,db4,db3,db2 to 1 **/
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+	outportb ( CR, 0x90|0x40);	/** set RS, R/W to 0 & E to 0 **/
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+
+/**  ---- set mode to shift cursor to the only the cursor right on entry ---- **/
+	outportb ( CR, 0x98|0x40);	/** set RS, R/W to 0 **/
+	outportb ( DR, 0xE8);	/** set db7,db6 to 0 and db5,db4,db3,db2 to 1 **/
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+	outportb ( CR, 0x90|0x40);	/** set RS, R/W to 0 & E to 0 **/
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+/*	CLR_DISP;          */
+
+	outportb ( CR, 0x98|0x40);	/** set RS, R/W to 0 **/
+	outportb ( DR, 0xFE);	/** set db7,db6 to 0 and db5,db4,db3,db2 to 1 **/
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+	outportb ( CR, 0x90|0x40);	/** set RS, R/W to 0 & E to 0 **/
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+
+/**  ----    return cursor to home and clear the display --- **/
+
+	outportb ( CR, 0x98|0x40);	/** set RS, R/W to 0 **/
+	outportb ( DR, 0xFC);	/** set db7,db6 to 0 and db5,db4,db3,db2 to 1 **/
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+	outportb ( CR, 0x90|0x40);	/** set RS, R/W to 0 & E to 0 **/
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+
+}
+
+#endif
+
+/** ********************************************************************* **
+
+	Outport_Cbyte( char DATA, char AND);
+
+		This routines output a byte to the controle register of the display. The
+		byte of data gets inverted as required by the hardware.
+
+		CR is the hardware addres of the ControleRegister.
+		0X sets the E line to log. 0, R/W to wright and the RS to log. 0.
+		0X sets the E line to log. 1, R/W to wright and the RS to log. 0.
+
+	Requirements :-
+
+		WAIT1;				/** makros defined in the INCLUDE.H file **/
+
+** ********************************************************************* **/
+
+Outport_Cbyte (char data, char AND ) {
+
+	unsigned int KKK;
+	char junk;
+#ifdef DENIS
+	outportb(CR, 0xcf);	/** set E to 0 or !E; RS to 7 & Controle register R/W = W **/
+	for ( KKK=0; KKK<LOOPIES; KKK++);
+	data = ~data;
+	outportb ( DR, data);	/** send to the data reg **/
+	for ( KKK=0; KKK<LOOPIES; KKK++);
+	outportb ( CR, 0xff);/** set E to 1 or E; RS to 0 Controle register R/W = W **/
+#else
+	/** set E to 0 or !E; RS to 7 & Controle register R/W = W **/
+	junk = 0xf0 | AND;
+	outportb(CR, junk);
+	for ( KKK=0; KKK<LOOPIES; KKK++);
+	data = ~data;
+	outportb ( DR, data);	/** send to the data reg **/
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+	outportb ( CR, 0xf8|AND);
+	/** set E to 1 or E; RS to 0 Controle register R/W = W **/
+#endif
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+}
+
+/** Output a byte to be displayed **/
+/** ********************************************************************* **
+
+	Outport_Dbyte( char DATA);
+
+		This routines output a byte to the controle register of the display. The
+		byte of data gets inverted as required by the hardware.
+
+		CR is the hardware addres of the ControleRegister.
+		0X13 is to set the E line to log. 0, R/W to wright and the RS to log. 0.
+		0X03 is to set the E line to log. 1, R/W to wright and the RS to log. 0.
+
+	Requirements :-
+
+		WAIT1;				/** makros defined in the INCLUDE.H file **/
+
+** ********************************************************************* **/
+
+Outport_Dbyte (char data ) {
+
+	Int counter;
+	unsigned int KKK;
+	char outcr;
+
+	outcr = R1W;
+	outportb ( CR, outcr);  /** RS =0 R/W =0 **/
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+	outcr |= E;							/** set E to 1 **/
+	outportb ( CR, outcr);	/** set E **/
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+	outportb ( DR, data);		/** o/p data **/
+		for ( KKK=0; KKK<LOOPIES; KKK++);
+	outcr &= e;							/** clear E **/
+	outportb ( CR, outcr);
+
+}
+
+Printf ( char *string) {
+	int counter;
+
+	for ( counter=0; counter < strlen ( string); counter++)
+		Outport_Dbyte( string[counter]);
+}
+char Kbhit() {
+
+/*	int kbd_op = 0x311;*/
+	Byte scan, tentis=0x00;
+	Int loop=0;
+#ifdef DENIS
+	outportb ( CR, 0x0f);	/** set all lines to 0 **/
+	while ( loop++ < KBD_LOOPS)
+		scan = inportb ( KBD_INPUT);
+	scan &= 0x0e;
+	if (scan != 0x0e)
+		scan = 0;
+	return (scan);
+#else
+
+	outportb ( CR, 0x07);	/** set all lines to 0 **/
+	while ( loop++ < KBD_LOOPS)
+		scan = inportb ( 0x315);
+	outportb ( 784, tentis);	/** set all lines to 0 **/
+	loop=0;
+	while ( loop++ < KBD_LOOPS)
+		inportb ( 0x315);
+	scan &= 0x0f;
+	if (scan != 0x0f)
+		scan = 0;
+	return (scan);
+#endif
+}
+
+/* Reads one charachter from memb. keybrd **/
+char Getch() {
+
+	Byte scan, shift = 0x1;
+	Int loop=0;
+#ifdef DENIS
+	char lookup[6][9] = {
+		"   1 2   ",
+		"3  * 0   ",
+		"#  7 8   ",
+		"9  4 5   ",
+		"6        "
+				};
+#else
+	Int KKK;
+	char lookup[6][9] = {
+		"a*7d4fgh1",
+		"j#9m6opq3",
+		"s08v5xyz2",
+		"BCDEFGHIJ",
+		"KLMNOPQRS"
+				};
+#endif
+
+	do
+		{
+		scan = Kbhit();
+		}while ( scan !=0);
+	sound(1000);
+/*		for ( KKK=0; KKK<LOOPIES; KKK++);*/
+	delay(5);
+#ifdef DENIS
+	do {
+		outportb ( CR, shift|64);						/** out put the shift char **/
+		for (loop=0; loop < KBD_LOOPS; loop++)
+			scan = inportb (KBD_INPUT);
+		if ( shift == 0x80)
+				shift >>= 4;
+		else
+				shift >>= 1;
+		scan &= 0x0f;
+		if ( coloms ==3) {
+			shift = 0x80;
+			coloms=0;
+		}
+	} while (( coloms++ < KBD_COLOMS) && (scan == 0x0f));
+	scan = ~scan; /** invert the input **/
+	scan &= 0x0f;
+	coloms--;
+	scan = lookup [coloms][scan];
+
+#else
+	do {
+		outportb ( CR, shift);	/** set all lines to 0 **/
+		while ( loop++ < KBD_LOOPS)
+			scan = inportb ( 0x315);
+		scan &= 0x0F;
+		shift = shift<<1;
+		if(shift>4)
+		 shift=1;
+		loop=0;
+	} while ( scan == 0x0F);
+	shift = shift>>1;
+/*
+	switch( shift)
+	{
+		case 16:
+			shift=3;
+		break;
+		case 8 :
+			shift=2;
+		break;
+		case 4:
+			shift=1;
+		break;
+		case 2 :
+			shift=0;
+		break;
+	}
+*/
+	scan = ~scan; /** invert the input **/
+	scan &= 0x0f;
+	scan = lookup [shift][scan];
+	printf ( "%c \n", scan);
+#endif
+	delay(400);
+/*	sleep(1);*/
+	nosound();
+	return (scan);
+}
+/*	if (scan == 0x0f)
+		scan = 0;
+	else {
+		if ( scan == 8 ) { /** check for the bottom coloms pressed **/
+			coloms =0;
+			shift = 0xfb;
+			do {
+				outportb ( CR, shift);						/** out put the shift char **/
+				for (loop = 0; loop< KBD_LOOPS; loop++)   /** see if a keyispressed **/
+					scan = inportb (KBD_INPUT);
+				scan &= 0x0f;
+				if ( scan != 0x0f)
+					col += coloms;
+				shift >>= 1;
+		 }while (coloms < 3);
+		 if ( col ==0 )
+			 scan = lookup [scan][coloms];
+		 else {
+			switch ( col) {
+				case 1 :
+					scan = lookup[4+coloms][scan];
+				break;
+				case 3 :
+					scan = lookup[7+coloms][scan];
+				break;
+				case 6 :
+					scan = lookup[10+coloms][scan];
+				break;
+			}
+		 }
+		} else
+*/
+
+

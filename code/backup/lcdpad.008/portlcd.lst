@@ -1,0 +1,118 @@
+C51 COMPILER V5.10,  PORTLCD                                                               18/07/97  23:21:26  PAGE 1   
+
+
+DOS C51 COMPILER V5.10, COMPILATION OF MODULE PORTLCD
+OBJECT MODULE PLACED IN PORTLCD.OBJ
+COMPILER INVOKED BY: D:\C51\BIN\C51.EXE PORTLCD.C
+
+stmt level    source
+
+   1          /*			Copyright Q Solutions				*/
+   2          /*	File:		PortLCD.c					*/
+   3          /*	Programmer:	MoT						*/
+   4          /*	Module:		I/O Port Controlled LCD 			*/
+   5          /*									*/
+   6          /*			History						*/
+   7          /* 8 April '97		Written from scratch				*/
+   8          /*									*/
+   9          
+  10          #include	<stdio.h>
+  11          #include	<reg552.h>
+  12          
+  13          #define	LCD_BF	0x08			/* Busy flag mask		*/
+  14          #define	LCD_I0	0x20			/* 4 bits			*/
+  15          #define	LCD_I1	0x2C			/* 4 bits; 2 line; 5x10		*/
+  16          #define	LCD_I2	0x0C			/* Display ON; Cursor off	*/
+  17          #define	LCD_I3	0x06			/* Auto increment; Freeze	*/
+  18          #define	LCD_CLR	0x01			/* Clear LCD			*/
+  19          #define	LCD_L1	0x80			/* Line 1			*/
+  20          #define	LCD_L2	0xC0			/* Line 2			*/
+  21          
+  22          typedef unsigned char byte;
+  23          typedef unsigned int uint;
+  24          
+  25          /* Control and DATA port defines					*/
+  26          #define	L_IO	P1			/* LCD Data Port		*/
+  27          #define	LINES	2			/* Number of LCD lines		*/
+  28          #define	COLUMNS	16			/* Number of LCD columns	*/
+  29          sbit	L_ENAB=	0xC7;			/* LCD Enable			*/
+  30          sbit	L_READ=	0xC6;			/* LCD Read			*/
+  31          sbit	L_DATA= 0xC5;			/* LCD DATA			*/
+  32          
+  33          void	init_plcd	( void );	/* Initialise LCD module	*/
+  34          char	set_plcd	( char in );	/* Control LCD			*/
+  35          char	pputchar	( char in );	/* Write data/command to LCD	*/
+  36          char	writeln	( char *in, char len );	/* Write a line to LCD		*/
+  37          void	paint_plcd (char*l1,char*l2);	/* Draw Screen			*/
+  38          
+  39          void	paint_plcd (char*l1,char*l2)	/* Draw Screen			*/
+  40          {
+  41   1      	set_plcd( LCD_L1 );		/* Goto Line 1			*/
+  42   1      	printf	( l1 );			/* Print first string		*/
+  43   1      	set_plcd( LCD_L2 );		/* Goto Line 2			*/
+  44   1      	printf	( l2 );			/* Print second string		*/
+  45   1      }
+  46          
+  47          void	init_plcd	( void )	/* Initialise LCD module	*/
+  48          {
+  49   1      char	i= 1;
+  50   1      //uint	j= 1;
+  51   1      //	while	( j++ );		/* Wait for display to settle	*/
+  52   1      	set_plcd( LCD_I0 );		/* See #define's for details	*/
+  53   1      	set_plcd( LCD_I1 );		/* See #define's for details	*/
+  54   1      	set_plcd( LCD_I2 );		/* See #define's for details	*/
+  55   1      	set_plcd( LCD_I3 );		/* See #define's for details	*/
+  56   1      	set_plcd( LCD_CLR);		/* Clear display		*/
+  57   1      	while	( i++ );		/* Wait for clear display	*/
+  58   1      }
+  59          
+C51 COMPILER V5.10,  PORTLCD                                                               18/07/97  23:21:26  PAGE 2   
+
+  60          char	set_plcd	( char in )	/* Control LCD			*/
+  61          {
+  62   1      	L_DATA=	0;			/* Set control			*/
+  63   1      	return ( pputchar( in ));	/* Send control settings	*/
+  64   1      }
+  65          
+  66          char	pputchar	( char in )
+  67          {
+  68   1      byte	busy, busycount=1;
+  69   1      	L_READ=	0;			/* Select write			*/
+  70   1      	L_ENAB=	1;			/* Enable LCD			*/
+  71   1      	L_IO= (L_IO& 0xF0)| (in>> 4);	/* Write 1st nibble		*/
+  72   1      	L_ENAB=	0;			/* Clock data into LCD		*/
+  73   1      	L_ENAB=	1;			/* Enable LCD			*/
+  74   1      	L_IO= (L_IO& 0xF0)| (in& 0x0F);	/* Write 2nd nibble		*/
+  75   1      	L_ENAB=	0;			/* Clock data into LCD		*/
+  76   1      	L_DATA=	0;			/* Select register		*/
+  77   1      	L_READ=	1;			/* Select read			*/
+  78   1      	do				/* Wait for busy flag to clear	*/
+  79   1      	{
+  80   2      		L_ENAB=	1;		/* Enable LCD			*/
+  81   2      		busy= L_IO& LCD_BF;	/* Read and mask out busy flag	*/
+  82   2      		L_ENAB=	0;
+  83   2      		L_ENAB=	1;		/* Dummy read of second nibble	*/
+  84   2      		L_ENAB=	0;
+  85   2      		if	( !busycount++ )/* Notch one up			*/
+  86   2      		{
+  87   3      			L_DATA=	1;
+  88   3      			return	( -1 );	/* WRITE FAIL !!		*/
+  89   3      		}
+  90   2      	}	while	( busy );
+  91   1      	L_DATA=	1;			/* Next byte defaults to DATA	*/
+  92   1      	return	( in );
+  93   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    154    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       7
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

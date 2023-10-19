@@ -1,0 +1,1281 @@
+#include <dos.h>
+#include <math.h>
+#include <conio.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include <string.h>
+#include <time.h>
+#include <graphics.h>
+
+#include "c:\include\c_incl\kbd_char.h"
+#include "c:\include\c_incl\vec_strn.h"
+#include "c:\include\serial\serial.h"
+#include "c:\include\c_incl\intstruc.h"
+/*
+#include "c:\weerstas\weer.h"
+*/
+#include "sievers.h"
+
+#define CLICK_POS 30
+#define tx_buf_size 1024
+
+
+unsigned char GainGUCA[] = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
+int ErrorGIA[]           = { 000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000};
+int MinGIA[]             = { 000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000};
+int OffsetGIA[]          = { 000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000};
+int MaksGIA[]            = { 2042, 2042,2042,2042,2042,2042,2042,2042,2042,2042,2042,2042,2042,2042,2042,2042};
+int AlarmSetPointsGIA[]  = {95,35,95,35,95,35,95,35,95,35,95,35,95,35,95,35,95,35,75,20,95,35,95,35,95,35,95,35,95,35,95,35,95,35 };
+int AlarmLevelsGIA[]     = {75,66,65,25,80,60,95,35,95,35,95,35,95,35,95,35,95,35,75,20,95,35,95,35,95,35,95,35,95,35,95,35,95,35 };
+int UnitsGIA[]           = { 5,2,41,41,41,100,2500,2500,2500,1000,1000,2500,2,0,0,0};
+int ModeGI=0;
+unsigned char OutputByte1GUC=0, OutputByte2GUC=0;
+
+char *BOX_NO[] = { "hadc1278"};
+FILE	*fp_output;
+char *Fonts[] =
+	{
+  "DefaultFont",   "TriplexFont",   "SmallFont",
+  "SansSerifFont", "GothicFont"
+	};
+
+char *TextDirect[] =
+	{
+  "HorizDir",  "VertDir"
+	};
+
+char *HorizJust[] =
+	{
+  "LeftText",   "CenterText",   "RightText"
+	};
+
+char *VertJust[] =
+	{
+  "BottomText",  "CenterText",  "TopText"
+	};
+int BASE=0x220,PumpsRunningGI=0; PumpsRunningGIA[] = {1,2,3};
+int Pump1RunningGI=0, Pump2RunningGI=0, Pump3RunningGI=0;
+int	X_POS_L[CLICK_POS+3];
+int	X_POS_R[CLICK_POS+3];
+int	Y_POS_L[CLICK_POS+3];
+int	Y_POS_R[CLICK_POS+3];
+int CLICK_TYPE[ CLICK_POS+3], DelayTimeGI=1600;
+int VleiSilvGI=0, VleiResGI=0, ResSilvGI=0, FlowTGI=0;
+int AND[17];
+
+char rx_buffer[tx_buf_size];
+char tx_buffer[tx_buf_size];
+char   STATION_NAME[32];
+int LOOPS, old_minute=71;
+float  Valve_position=50;
+float FlowVleiSilvGF=0, FlowVleiResGF=0 ,FlowResSilvGF=0 ,FlowGF=0;
+float FlowTGF;
+
+double AspectRatio;		/** Aspect ratio of a pixel on the screen*/
+int    GraphDriver;		/** The Graphics device driver		*/
+int    GraphMode;		  /** The Graphics mode value		*/
+int    MaxX, MaxY;		/** The maximum resolution of the screen */
+int    MaxColors;		  /** The maximum # of colors available	*/
+int    ErrorCode;		  /** Reports any graphics errors		*/
+int    Counts, Min_interval, Maks_speed, Display_time, Maks_temp, Min_temp;
+int    tnc_port, id, tnc_num, p_mode, poled_loops;
+int    plc_port, select_port, old_day, DAY, MIN;
+void *menu;
+
+int    Waardes[DATA_BYTES], LoopsGI=0;
+unsigned char O_P1=0, O_P2=0;
+int Switch[]  = { 0,0,0,0};
+
+struct palettetype palette;		/** Used to read palette info	*/
+struct tm *my_time;
+
+int read_adc( adc)
+	int adc;
+	{
+	int address, val, loop_counter;
+	unsigned char data;
+
+	outportb( BASE+10, adc);
+	outportb ( BASE+9,GainGUCA[adc]);
+	outportb( BASE+11, 1);  /* trigger adc */
+	outportb( BASE+12, 0);  /* trigger adc */
+
+
+	do
+		{
+		data = inportb (BASE+5);
+		data &= 0x10;
+		}while ( data >0);
+	data =inportb (BASE+5);
+	data &= 0x0f; /** mask off un wanted bits **/
+	val =(int) data <<8;
+	val +=inportb (BASE+4);
+	return (val);
+	}
+
+file_open()
+	{
+
+	char karakter[256];
+	time_t mytime;
+	time( &mytime);
+
+	my_time  = localtime(&mytime);
+	sprintf( karakter, "%ssil%02d_%02d.doc", getenv( "WCR_DAT")\
+													, my_time->tm_mon+1, my_time->tm_mday);
+	if ( (fp_output = fopen( karakter, "at")) ==0)
+		if ( (fp_output = fopen( karakter, "wt")) ==0)
+			{
+			error(2);
+			exit(2);
+			}
+	 }
+
+silverstroom()
+	{
+
+	char kar, text[13], date_buf[128];
+
+	char *char_p;
+	int counts, min, y_half, devider, width, xpos=15, txpos;
+	int y_pos, degrees, from ,to, counter;
+	float barv_length, barv_pos, tt, travel, vtravel, Degrees;
+	struct textsettingstype my_settings;
+	struct viewporttype	tmp_type;
+	time_t temp_time;
+	struct tm *local_time;
+
+	gettextsettings (&my_settings);
+	setbkcolor( EGA_BLUE);
+	counts = 33;
+	setcolor( EGA_WHITE);
+	rectangle(0,0,MaxX,MaxY);
+	setfillstyle(SOLID_FILL, LIGHTGRAY);
+
+	setcolor( EGA_LIGHTGRAY);
+	xpos = 80;/* was 40*/
+	y_pos = 465;
+	line ( xpos- 10, y_pos-40, xpos+ 25, y_pos+12);
+	line ( xpos- 30, y_pos-40, xpos- 10, y_pos-40);
+	line ( xpos    , y_pos+12, xpos+ 65, y_pos+12);
+	line ( xpos+  7, y_pos-14, xpos+ 35, y_pos-30);
+	line ( xpos+ 10, y_pos-10, xpos+ 45, y_pos-30);
+	line ( xpos+ 35, y_pos-30, xpos+ 45, y_pos-30);
+	line ( xpos+ 45, y_pos-30, xpos+ 45, y_pos-38);
+	line ( xpos+ 35, y_pos-30, xpos+ 35, y_pos-38);
+	line ( xpos+ 35, y_pos-38, xpos+ 45, y_pos-38);
+	line ( xpos+ 35, y_pos-38, xpos+135, y_pos-88);
+	line ( xpos+ 45, y_pos-38, xpos+145, y_pos-88);
+	line ( xpos+135, y_pos-88, xpos+145, y_pos-88);
+	line ( xpos+145, y_pos-88, xpos+145, y_pos-98);
+	y_pos -=73;
+	xpos +=145;
+	line ( xpos-10 , y_pos-40, xpos+  8, y_pos-14);
+	line ( xpos-18 , y_pos-40, xpos- 10, y_pos-40);
+	line ( xpos+8  , y_pos-14, xpos+ 25, y_pos-14);
+	line ( xpos-130, y_pos+70, xpos+  8, y_pos-14);
+	xpos -=150;
+	setcolor( WHITE);
+	for ( counts=0;counts < 3; counts++)
+		{
+		circle( xpos+1, 55, 5);
+		line( xpos+2,59,xpos+2,69);
+		xpos +=25;
+		}
+	line( xpos-24,69,xpos-73,69);
+	xpos -=48;
+	line( xpos,69,xpos,99);
+	arrow( xpos, 99, 'd');
+	xpos -=70;
+	draw_tank ( xpos, 99, 141, 120);
+	y_pos -=75;
+	draw_pumps_vert( xpos+65, y_pos, 1);
+	line      ( xpos+30, y_pos-60, xpos-20, y_pos-60);
+	rectangle ( xpos+30, y_pos-55, xpos+50, y_pos-65);
+	line      ( xpos-20, y_pos-45, xpos-20, y_pos-230);
+	line      ( xpos-20, y_pos-230, xpos+10, y_pos-230);
+	line      ( xpos+10, y_pos-230, xpos+10, y_pos-218);
+	arrow     ( xpos+10, y_pos-218, 'd');
+	rectangle ( xpos-25, y_pos-25, xpos-15, y_pos-45);
+	line      ( xpos-20, y_pos-15, xpos-20, y_pos-25);
+	line      ( xpos-20, y_pos-15, xpos+65, y_pos-15);
+	line      ( xpos+65, y_pos+49, xpos+65, y_pos+75);
+	arrow( xpos+65, y_pos+60, 'u');
+	xpos +=65;
+	draw_pumps_vert( xpos+55, y_pos, 1);
+	line      ( xpos+55 , y_pos-45, xpos+55, y_pos-55);
+	line      ( xpos+55 , y_pos-25, xpos+55, y_pos-15);
+	line      ( xpos+55 , y_pos-55, xpos+105, y_pos-55);
+	line      ( xpos+105, y_pos-55, xpos+105, y_pos-96);
+	line      ( xpos+105, y_pos-104, xpos+105, y_pos-185);
+	line      ( xpos+105, y_pos-185, xpos+343, y_pos-185);
+	rectangle ( xpos+50, y_pos-25, xpos+60, y_pos-45);
+	line      ( xpos+55, y_pos, xpos+55, y_pos-10);
+	line      ( xpos+55, y_pos+49, xpos+55, y_pos+75);
+	arrow( xpos+55, y_pos+60, 'u');
+	xpos= 390;
+	y_pos -=100;
+	draw_pumps( xpos, y_pos-50, 1);
+	rectangle ( xpos+10, y_pos-56, xpos+35, y_pos-44);
+	line      ( xpos+10, y_pos-50,  xpos   , y_pos-50);
+	line      ( xpos+35, y_pos-50,  xpos+180  , y_pos-50);
+	line      ( xpos+150, y_pos-85,  xpos+150  , y_pos-50);
+	line      ( xpos+132, y_pos-85,  xpos+150  , y_pos-85);
+	arrow     ( xpos+180, y_pos-50, 'r');
+	line      ( xpos+50, y_pos-50,  xpos+50   , y_pos-165);
+	line      ( xpos+50, y_pos-165,  xpos+75   , y_pos-165);
+	line      ( xpos+75, y_pos-165,  xpos+75   , y_pos-155);
+	arrow     ( xpos+75, y_pos-155, 'd');
+	draw_pumps( xpos, y_pos+50, 2);
+	line      ( xpos-63, y_pos+50, xpos-63, y_pos-50);
+	line      ( xpos-63, y_pos, xpos-215, y_pos);
+	draw_tank ( xpos+60, y_pos-150,70, 70);
+	y_pos +=50;
+	rectangle ( xpos+60, y_pos+12, xpos+85, y_pos+23);
+	line      ( xpos+85, y_pos+18, xpos+140, y_pos+18);
+	arrow     ( xpos+140, y_pos+18, 'r');
+	line      ( xpos+5   , y_pos+18, xpos+60, y_pos+18);
+	rectangle ( xpos-65, y_pos+90, xpos-85, y_pos+102);
+	line      ( xpos-65, y_pos+96, xpos+15, y_pos+96);
+	line      ( xpos+15, y_pos+96, xpos+15, y_pos+20);
+	line      ( xpos+20, y_pos+186, xpos+45, y_pos+186);
+	line      ( xpos+45, y_pos+186, xpos+45, y_pos+20);
+	draw_pumps( xpos+20, y_pos+186, 1);
+	draw_tank ( xpos-75, y_pos+160,30, 30);
+	y_pos = 430;
+	xpos -= 208;
+	setcolor(EGA_LIGHTCYAN);
+	outtextxy( xpos-30 , y_pos    , "WEIR Level 0-2M");
+
+	outtextxy( xpos+150 , 180      , "Resort");
+	outtextxy( xpos+150 , 190      , "PUMP");
+	outtextxy( xpos+150 , 280      , "Hi Lift1");
+	outtextxy( xpos+150 , 340      , "Hi Lift2");
+	outtextxy( xpos- 95 , 250      , "Chlorine");
+	outtextxy( xpos- 95 , 260      , "dosing");
+	outtextxy( xpos+ 98 , 373      , "Chlorine");
+	outtextxy( xpos+ 98 , 383      , "dosing");
+	outtextxy( xpos+ 98 , MaxY-15  , "Caustic Soda");
+	outtextxy( MaxX- 50 , MaxY-25  , "IRRIG");
+
+	xpos=15;
+	gettextsettings (&my_settings);
+	settextstyle( my_settings.font, VERT_DIR, 1);
+
+	settextstyle( my_settings.font, HORIZ_DIR, 1);
+
+	setcolor(EGA_LIGHTMAGENTA);
+	outtextxy( 265  , 40 , "DEVELOPED BY");
+	outtextxy( 265  , 50 , "INFOTRANS CC");
+
+	settextstyle( my_settings.font, HORIZ_DIR, 2);
+	outtextxy( 220  , 10      , "SILVERSTROOM");
+	setcolor(EGA_WHITE);
+	settextstyle( my_settings.font, HORIZ_DIR, 1);
+	}
+
+
+/*									*/
+/*	INITIALIZE: Initializes the graphics system and reports 	*/
+/*	any errors which occured.					*/
+/*									*/
+
+	Initialize()
+	{
+  int xasp, yasp;			/** Used to read the aspect ratio*/
+
+  GraphDriver = DETECT; 		/** Request auto-detection	*/
+  initgraph( &GraphDriver, &GraphMode, "" );
+  ErrorCode = graphresult();		/** Read result of initialization*/
+	if( ErrorCode != grOk )
+		{		/** Error occured during init	*/
+    printf(" Graphics System Error: %s\n", grapherrormsg( ErrorCode ) );
+    exit( 1 );
+		}
+
+  getpalette( &palette );		/** Read the palette from board	*/
+  MaxColors = getmaxcolor() + 1;	/** Read maximum number of colors*/
+
+  MaxX = getmaxx();
+  MaxY = getmaxy();			/** Read size of screen		*/
+
+  getaspectratio( &xasp, &yasp );	/** read the hardware aspect	*/
+  AspectRatio = (double)xasp / (double)yasp; /** Get correction factor	*/
+	}
+
+reset_val( val_port, data)
+int val_port, data;
+	{
+	char t_buf[53];
+	unsigned char junk, t_char, errb;
+	int rx_counter=0, loopies;
+	unsigned int mw, e_mw, lopies, rx_byte;
+
+	rx_counter =0;
+	mw = 0x4000;
+	for( loopies = 0; loopies < val_port; loopies++)
+		mw += 2;
+	junk   = mw>>8;
+	t_char = mw;
+	e_mw   = mw+1;
+/*
+	printf( "%0.2x%0.2x %x %x\n", junk, t_char, mw,e_mw);
+*/
+	memset ( t_buf, 0, sizeof( t_buf));
+	t_buf[rx_counter++] = 0x0c;
+	t_buf[rx_counter++] = 0x03;
+	t_buf[rx_counter++] = 0x83;
+	t_buf[rx_counter++] = junk;
+	t_buf[rx_counter++] = t_char;
+	junk   = e_mw>>8;
+	t_char = e_mw;
+	t_buf[rx_counter++] = junk;
+	t_buf[rx_counter++] = t_char;
+	t_buf[rx_counter] = crc_calc( 7, t_buf);
+	sendRS232( 8, t_buf);
+
+	t_char = recRS232( &errb, 0);
+	if ( errb == 0)
+		{
+		if (t_char == 6)
+			{
+			rx_counter = 2;
+			t_buf[rx_counter++] = 0x14;
+			t_buf[rx_counter++] = 2;
+			junk   = data>>8;
+			t_char = data;
+			t_buf[rx_counter++] =(unsigned char) t_char;
+			t_buf[rx_counter++] =(unsigned char) junk;
+			t_buf[rx_counter] = crc_calc( 6, t_buf);
+			sendRS232( 7, t_buf);
+			t_char = recRS232( &errb,0);
+			if ( t_char == 6)
+				return (0);
+			}
+		}
+	return(1);
+	}
+
+
+/** pole a station **/
+int pole( )
+	{
+
+	char *pchar, kar;
+	int LOOPS,	loops=0, err=0, counts, SlaapI=1800;
+
+	 send_ok();
+	 delay(SlaapI);
+	 pchar = rx_buffer;
+	 memset( rx_buffer, 0 , sizeof( rx_buffer));
+	 if ( rx_packet( rx_buffer) ==0)
+		 {
+		 do
+			 {
+			 if ( *pchar == ' ')
+				 loops++;
+			 } while ( *pchar++ != '&');
+		 if( loops== MAKS_INT && *--pchar == '&')
+			 {
+			 *pchar = '\n';
+			 LOOPS=0;
+			 pchar = strchr( rx_buffer, ' ');
+			 pchar++;
+			 do
+				{
+				Waardes[LOOPS] = atoi( pchar);
+				pchar = strchr( pchar, ' ');
+				pchar++;
+				} while ( LOOPS++ < MAKS_INT);
+				pchar = rx_buffer;
+			 } else
+				 {
+				 err++;
+				 setbkcolor(LIGHTRED);
+				 return(1);
+				 }
+		 }else
+			 return(1);
+	if( old_day != DAY)
+		{
+		fclose ( fp_output);
+		old_day = DAY;
+		}
+	return(0);
+}
+
+error( string, name)
+int string;
+char *name;
+	{
+	char *error_string[]=
+		{
+		"Program aborting",                       /* 0 */
+		"Wrong parameters passed to program",     /* 1 */
+		"DOS error could not open file",          /* 2 */
+		"NO RESPONCE FROM ",                   /* 3 */
+		"DOS error could not write to the file",  /* 4 */
+		};
+	int tone;
+
+	setbkcolor (RED);
+	clearviewport();
+	setcolor( WHITE);
+	outtextxy(200,200,error_string[string]);
+	outtextxy(200,210, name );
+	for ( tone = 800; tone > 400; tone -=100)
+		{
+		sound (tone);
+		delay( 90);
+		}
+	nosound();
+	}
+
+int val_con( waarde, devider)
+int waarde, devider;
+	{
+	float value;
+	int xpos;
+
+	value = (float)Waardes[waarde];
+	value /=devider;
+	value*=100;
+	xpos = (int) value;
+	return(xpos);
+	}
+
+void Get_data( )
+	{
+
+	char *pchar;
+	int LOOPS,	loops, TempI;
+
+	for( loops=0; loops < 16; loops++)
+		{
+		Waardes[loops] = read_adc(loops);
+		Waardes[loops] -= OffsetGIA[loops];
+		}
+	for( loops=0; loops < 16; loops++)
+		{
+		if (Waardes[ loops] < MinGIA[loops])
+			ErrorGIA[loops] =1;
+		else
+			ErrorGIA[loops] =0;
+		if( Waardes[loops] > -15  && Waardes[loops] < 0)
+			Waardes[loops] = 0;
+		}
+	if( Waardes[2] >0)
+		{
+		FlowVleiSilvGF +=Waardes[2];
+		VleiSilvGI++;
+		}
+
+	if( Waardes[3] >0)
+		{
+		FlowVleiResGF +=Waardes[3];
+		VleiResGI++;
+		}
+	if( Waardes[4] >0)
+		{
+		FlowResSilvGF +=Waardes[4];
+		ResSilvGI++;
+		}
+	if( Waardes[5] >0)
+		{
+		FlowGF +=Waardes[5];
+		FlowTGI++;
+		}
+	Waardes[loops++] = inportb( BASE+6);/** read dig i/p 0 - 7  board 1 **/
+	Waardes[loops++] = inportb( BASE+7); /** read dig i/p 8 - 15 board 1**/
+	Waardes[loops++] = inportb( 0x2A0);  /** read dig i/p 0 - 7  board 2**/
+	Waardes[loops]   = inportb( 0x2a1); /** read dig i/p 8 - 15 board 2**/
+
+ }
+
+int PumpsOK( int pump)
+	{
+	int ConditionI;
+
+	switch ( pump)
+		{
+		case 1:
+			ConditionI = Waardes[16] &0xf;
+		break;
+		case 2:
+			ConditionI = Waardes[16] >>4;
+		break;
+		case 3:
+			ConditionI = Waardes[17] &0xf;
+		break;
+		case 4:
+			ConditionI = Waardes[17] >>4;
+		break;
+		case 5:
+			ConditionI = Waardes[18] &0xf;
+		break;
+		case 6:
+			ConditionI = Waardes[18] >>4;
+		break;
+		}
+	}
+
+int Percentage( int OffsetI)
+	{
+	float Temp1F, Temp2F;
+	int ReturnI;
+
+	Temp1F = Waardes[OffsetI];
+	Temp2F = MaksGIA[OffsetI];
+	Temp1F /= Temp2F;
+	Temp1F *=100;
+	ReturnI = (int) Temp1F;
+	return( ReturnI);
+	}
+
+void Controle()
+	{
+	int Vlei1I, Vlei2I, ResortI, HighLift1I, HighLift2I, PercentageI;
+	int BoreholesI, TestI;
+	char date_buf[45];
+
+	ResortI    = PumpsOK(1);
+	HighLift1I = PumpsOK(2);
+	HighLift2I = PumpsOK(3);
+	BoreholesI = PumpsOK(4);
+	Vlei1I     = PumpsOK(5);
+	Vlei2I     = PumpsOK(6);
+
+	/***  treat the Resort Resevoir low level ***/
+	PercentageI = Percentage(1);
+	if ( PercentageI > AlarmLevelsGIA[1*2] )  /** check level of Resort Resevoir  **/
+		{
+		if ( 	Valueconfersion( 4) < 5)        /** check the flow !!*/
+			OutputByte1GUC &= ~ (0x1 + 0x02);
+		} else
+			 {    /** check level of the vlei**/
+	/** check level of Resort Resevoir  **/
+			 if ( PercentageI <  AlarmLevelsGIA[3] || Valueconfersion( 4) >5)
+				 {
+				 if ( Vlei1I >=10)
+					 OutputByte1GUC |= 0x01;  /**   Check vlei pump **/
+				 else
+					 OutputByte1GUC &= ~0x01;  /**  Check vlei pump **/
+				 if ( ResortI >=10)
+					 OutputByte1GUC |= 0x02;  /**   Check resort pump **/
+				 else
+					 OutputByte1GUC &= ~0x02;  /**  Check resort pump **/
+				 }
+			}
+	/***  treat the Main Resevoir low level ***/
+	PercentageI = Percentage(0);
+	if ( PercentageI > AlarmLevelsGIA[0] )  /** check level of Main Resevoir  **/
+		{
+		OutputByte1GUC &= ~(0x8);
+		} else
+			{    /** check level of the and main resevoir vlei**/
+			if ( PercentageI <  AlarmLevelsGIA[1])
+				 {
+				 if ( BoreholesI == 11 || BoreholesI == 10 )
+					 OutputByte1GUC |= 0x08;  /**   Check bore holes pump **/
+				 else
+					 OutputByte1GUC &= ~0x08;  /**  Check bore holes pump **/
+				 }
+			}
+	PercentageI = Percentage(0);
+	if ( PercentageI > AlarmLevelsGIA[4] )  /** check level of Main Resevoir  **/
+		{
+		OutputByte1GUC &= ~(0x4);
+		} else
+			{    /** check level of the and main resevoir vlei**/
+			if ( PercentageI <  AlarmLevelsGIA[5])
+				 {
+				 if ( Vlei2I == 11)
+					 OutputByte1GUC |= 0x04;  /**   Check vlei pump **/
+				 else
+					 OutputByte1GUC &= ~0x04;  /**  Check vlei pump **/
+				 }
+			}
+	 if ( Vlei2I <10)
+		 OutputByte1GUC &= ~0x01;  /**  Check vlei pump **/
+	 if ( ResortI <10)
+		 OutputByte1GUC &= ~0x02;  /**  Check resort pump **/
+	 if ( BoreholesI <10)
+		 OutputByte1GUC &= ~0x08;  /**  Check Boreholes **/
+	 if ( Vlei1I <10)
+		 OutputByte1GUC &= ~0x10;  /**  Check vlei pump **/
+	 if ( HighLift1I <10)
+		 OutputByte1GUC &= ~0x04;  /**  Check HighLift1 pump **/
+	 if ( HighLift2I <10)
+		 OutputByte1GUC &= ~0x20;  /**  Check HighLift2 pump **/
+	 if ( Vlei2I >11)
+		 OutputByte1GUC &= ~0x01;  /**  Check vlei pump **/
+	 if ( ResortI >11)
+		 OutputByte1GUC &= ~0x02;  /**  Check resort pump **/
+	 if ( BoreholesI >11)
+		 OutputByte1GUC &= ~0x08;  /**  Check Boreholes **/
+	 if ( Vlei1I >11)
+		 OutputByte1GUC &= ~0x10;  /**  Check vlei pump **/
+	 if ( HighLift1I >11)
+		 OutputByte1GUC &= ~0x04;  /**  Check HighLift1 pump **/
+	 if ( HighLift2I >11)
+		 OutputByte1GUC &= ~0x20;  /**  Check HighLift2 pump **/
+	 if ( ModeGI > 0)
+		 {
+			if ( HighLift1I == 11)
+				OutputByte1GUC |= 0x10;    /**   Check higlift*/
+			else
+				 OutputByte1GUC &= ~0x10;  /**  Check highlift**/
+			if ( HighLift2I == 11)
+				OutputByte1GUC |= 0x20;    /**   Check higlift*/
+			else
+				 OutputByte1GUC &= ~0x20;  /**  Check highlift**/
+			}  else
+				{
+				OutputByte1GUC &= ~0x10;    /**   Check higlift*/
+				OutputByte1GUC &= ~0x20;    /**   Check higlift*/
+				}
+
+	/*** Treat the irrigation system ***/
+	if ( (Waardes[19] &16) >0)
+		OutputByte1GUC &= ~128;
+	else
+		OutputByte1GUC |= 128;
+	}
+
+draw_cursor( xpos, ypos)
+	{
+	setcolor(EGA_YELLOW);
+	line( xpos-10, ypos   , xpos+10, ypos);
+	line( xpos   , ypos-10, xpos   , ypos+10);
+	}
+
+on_off( xpos, ypos)
+int xpos, ypos;
+	{
+
+	char kar;
+	int level=0, maks, kbd_loops=0;
+
+		if ( level == 0)
+			{
+			setcolor( YELLOW);
+			setfillstyle ( SOLID_FILL, YELLOW);
+			} else
+				{
+				setcolor( RED);
+				setfillstyle ( SOLID_FILL, RED);
+				}
+		bar(  xpos, ypos, xpos+30, ypos+30);
+		if ( level == 1)
+			{
+				setcolor( YELLOW);
+				setfillstyle ( SOLID_FILL, YELLOW);
+			} else
+				{
+			setcolor( GREEN);
+			setfillstyle ( SOLID_FILL, GREEN);
+				}
+		bar(  xpos+50, ypos, xpos+80, ypos+30);
+		setcolor( WHITE);
+		outtextxy ( xpos+10, ypos+10, "ON");
+		outtextxy ( xpos+55, ypos+10, "OFF");
+	do
+		{
+		if ( kbhit())
+			{
+		kar = getch();
+		if ( kar ==0)
+			{
+			kar = getch();
+			switch( kar)
+				{
+				case 'M':
+					level =1;
+				break;
+				case 'K':
+					level = 0;
+				break;
+				}
+		if ( level == 0)
+			{
+			setcolor( YELLOW);
+			setfillstyle ( SOLID_FILL, YELLOW);
+			} else
+				{
+				setcolor( RED);
+				setfillstyle ( SOLID_FILL, RED);
+				}
+		bar(  xpos, ypos, xpos+30, ypos+30);
+		if ( level == 1)
+			{
+				setcolor( YELLOW);
+				setfillstyle ( SOLID_FILL, YELLOW);
+			} else
+				{
+			setcolor( GREEN);
+			setfillstyle ( SOLID_FILL, GREEN);
+				}
+		bar(  xpos+50, ypos, xpos+80, ypos+30);
+		setcolor( WHITE);
+		outtextxy ( xpos+10, ypos+10, "ON");
+		outtextxy ( xpos+55, ypos+10, "OFF");
+		} else if ( kar == 0x0d)
+			{
+			kar=0;
+			return(level);
+			}
+		} else
+			{
+			kar=1;
+			if ( kbd_loops++ > 19500)
+				kar=0;
+			}
+		} while( kar != 0x0);
+		return(-1);
+	}
+
+execute_cr( xpos,ypos)
+int xpos, ypos;
+	{
+	struct viewporttype t_type;
+	struct linesettingstype l_type;
+	char kar, tmp_buf[15];
+	int test_counter=0, test_val=0, t1=1, t2=1, pstep;
+	int maks=1023, level=0, display, kbd_loops=0;
+	double percentage=0;
+
+	level = (int)(maks/100* Valve_position);
+	do
+		{
+		if ( t1 >0)
+			if ((xpos >= X_POS_L[test_counter]) && ( xpos <= X_POS_R[test_counter]) \
+			&&  (ypos >= Y_POS_L[test_counter]) && (ypos <= Y_POS_R[test_counter]))
+			{
+				t1= 0;
+				t2= 0;
+			}
+		test_val = t1|t2;
+		}while (test_val !=0 && test_counter++ <= CLICK_POS);
+		if( test_counter <= CLICK_POS+1)
+			{
+			xpos=MaxX-101;ypos=MaxY-121;
+			getviewsettings(&t_type);
+			getimage ( xpos, ypos, xpos+100, ypos+120, menu);
+			setviewport( xpos, ypos, xpos+100, ypos+120, 1);
+			setfillstyle ( SOLID_FILL, LIGHTGRAY);
+/*			xpos = ypos = 3;*/
+			floodfill( 3,3,LIGHTGRAY);
+			getlinesettings( &l_type);
+			setlinestyle ( SOLID_LINE, l_type.upattern, THICK_WIDTH);
+			setcolor( WHITE);
+			rectangle( 1,1, 99,119);
+			setlinestyle ( l_type.linestyle, l_type.upattern, l_type.thickness);
+/*
+			if ( CLICK_TYPE[test_counter] == PuMP)
+				{
+				percentage = on_off(10, 10);
+				if( percentage >=0)
+					{
+					sprintf( rx_buffer, "UUUUUUUUUOB%d %d&\r", test_counter,(int) percentage);
+					for( percentage =0; percentage < 3; percentage++)
+						{
+						sendRS232( strlen( rx_buffer), &rx_buffer);
+						delay(500);
+						}
+					}
+				} else if ( CLICK_TYPE[test_counter] == MOTOR)
+					{
+
+					percentage = on_off(10, 10);
+					if( percentage >=0)
+						{
+						sprintf( rx_buffer, "UUUUUUUUUOH%d %d&\r", test_counter-30,(int) percentage);
+						for( percentage =0; percentage < 3; percentage++)
+						 {
+						 sendRS232( strlen( rx_buffer), &rx_buffer);
+						 delay(500);
+						 }
+						}
+					} else if ( CLICK_TYPE[test_counter] == VALVE)
+						{
+						percentage=0;
+						xpos = 15 ; ypos =113;
+						do
+							{
+							setcolor( WHITE);
+							setfillstyle ( SOLID_FILL, WHITE);
+						/**   xpos  ypos width         text  value in %    type**/
+  						percentage = (float)level/maks;
+							percentage *=100;
+							display =(int) percentage;
+/*											xpos	ypos	width height alarm text  value   type*/
+				display_level ( xpos, ypos, 9    , 88   , 75 ,  100, display, 'l');
+				sprintf( tmp_buf, "%5.2f%", percentage);
+				Outtextxy ( MaxX-90, MaxY-115, tmp_buf, 6);
+					if ( kbhit())
+						{
+							kar = getch();
+							if ( kar ==0)
+								{
+								kar = getch();
+									switch( kar)
+									 {
+											case 'H':
+											 if ( level <maks)
+												 level+= maks/100;
+											 if (level > 1023)
+												 level =1023;
+											break;
+											case 'P':
+											 if ( level > 0)
+												 level -= maks/100;
+											break;
+									 }
+								kar =1;
+								} else if ( kar == 0x0d)
+									{
+									percentage = 4095 * percentage / 100;
+									call_station( 0);
+									sprintf( rx_buffer, "UUUUUUUUUOV1 %d&\r",(int) percentage);
+									for( percentage =0; percentage < 3; percentage++)
+										{
+										sendRS232( strlen( rx_buffer), &rx_buffer);
+										delay(500);
+										}
+									kar =0;
+									kbd_loops=0;
+									break_comms();
+									}
+							} else
+								{
+								kbd_loops++;
+								if (kbd_loops > 300)
+									kar =0;
+								}
+							} while( kar != 0x0);
+						}
+*/
+			putimage ( 0, 0, menu, COPY_PUT);
+			setviewport( t_type.left,t_type.top,t_type.right,t_type.bottom,t_type.clip);
+			}
+	}
+/*	Begin main function						*/
+/*									*/
+
+int main(argc, argv)
+int argc;
+char *argv[];
+	{
+
+	void *cursor, *scr1;
+	struct time new_time;
+	struct viewporttype t_type;
+	struct linesettingstype l_type;
+	time_t mytime;
+	FILE *fp_temp;
+
+	float TempF;
+
+	char kar, *char_p, temp_buf[1048], *char_b, *pchar;
+	char connect[] = { "c XXXXXX\r"};
+	char karakter[16];
+	int modifier, Buffers, xpos,ypos, txpos=0, typos, tt, counter;
+	int counts, old_pos, write_bytes, kbd_counter, char_send;
+	float PumpChangeHighI=0, PumpChangeLowI=0;
+	float PumpChangeHighOld=0, PumpChangeLowOld=0;
+	unsigned int size, SEC=-1;
+	long TotalLoops=0;
+	int Loops=0, size_of_write_buf, ttxpos, ttypos, err_tx;
+	int OldValueI=-1;
+
+
+	outportb( BASE+13, 0);
+	outportb( BASE+14, 0);
+	fp_temp = fopen( "silvers.gan", "rt");
+	if( fp_temp == 0)
+		{
+		error(2, temp_buf);
+		exit(0);
+		}
+	for ( txpos =0; txpos< MAKS_INT/2; txpos++)
+		{
+		fscanf (  fp_temp, "%c ", &GainGUCA[txpos]);
+		GainGUCA[txpos] -= '0';
+		}
+	fclose ( fp_temp);
+
+	fp_temp = fopen( "silvers.min", "rt");
+	if( fp_temp == 0)
+		{
+		error(2, temp_buf);
+		exit(0);
+		}
+	for ( txpos =0; txpos< MAKS_INT/2; txpos++)
+		{
+		fscanf (  fp_temp, "%d ", &OffsetGIA[txpos]);
+		}
+	fclose ( fp_temp);
+
+	fp_temp = fopen( "silvers.maks", "rt");
+	if( fp_temp == 0)
+		{
+		error(2, temp_buf);
+		exit(0);
+		}
+	for ( txpos =0; txpos< MAKS_INT; txpos++)
+		{
+		fscanf (  fp_temp, "%d ", &MaksGIA[txpos]);
+/*		if( Waardes[txpos] >  MaksGIA[ txpos])
+			 Waardes[txpos] =  MaksGIA[ txpos];*/
+		}
+	fclose ( fp_temp);
+
+	fp_temp = fopen( "silvers.LEV", "rt");
+	if( fp_temp == 0)
+		{
+		error(2, temp_buf);
+		exit(0);
+		}
+	for ( txpos =0; txpos< MAKS_INT; txpos++)
+		fscanf (  fp_temp, "%d ", &AlarmSetPointsGIA[txpos]);
+	fclose ( fp_temp);
+
+	fp_temp = fopen( "silvers.unt", "rt");
+	if( fp_temp == 0)
+		{
+		error(2, temp_buf);
+		exit(0);
+		}
+	for ( txpos =0; txpos< MAKS_INT; txpos++)
+		fscanf (  fp_temp, "%d ", &UnitsGIA[txpos]);
+	fclose ( fp_temp);
+
+	clrscr();
+	memset( Waardes, -1, sizeof(Waardes));
+	Initialize();
+	size   = imagesize(1,1,100,120);
+	menu   = malloc( size);
+	size   = imagesize(1,1,25,25);
+	cursor = malloc( size);
+	size   = imagesize(1,1,100,50);
+	scr1   = malloc( size);
+	xpos = MaxX/2; ypos = MaxY/2;
+	if ( argc < 4)
+	{
+		error(0);
+		sleep(1);
+		error(1);
+		exit(1);
+	}
+	strncpy ( &connect[2], argv[1], 6);
+	strcpy ( STATION_NAME, connect);
+/** int port,int speed,int bits,char parity,int stops) **/
+
+	if( *argv[2] == '1')
+		{
+		if (initRS232(COM1,9600,8,'N',2))
+				exit(1);
+		} else
+			{
+			if (initRS232(COM2,9600,8,'N',2))
+				exit(1);
+			}
+
+	time( &mytime);
+	my_time  = localtime(&mytime);
+	old_day  = my_time->tm_mday;
+
+	txpos=xpos-10; typos=ypos-10;
+	silverstroom();
+	getimage( txpos,typos,txpos+20,typos+20, cursor);
+	getimage( MaxX-100    ,1       ,MaxX, 50, scr1);
+	time( &mytime);
+	my_time = localtime(&mytime);
+	ctime( &mytime);
+	old_minute = MIN = my_time->tm_min;
+	for(;;)
+		{
+		DAY = my_time->tm_mday;
+		LOOPS=0;
+		time( &mytime);
+		my_time = localtime(&mytime);
+		if( my_time->tm_sec != SEC)
+			{
+		if( (Waardes[16] &1) ==0)
+				PumpChangeLowI++;
+		else
+				PumpChangeHighI++;
+
+		Controle();
+gotoxy(1,1);
+printf( "%2x", OutputByte1GUC);
+		outportb( BASE+13, OutputByte1GUC);
+		outportb( BASE+14, OutputByte2GUC);
+		SEC = my_time->tm_sec;
+		char_p  = ctime( &mytime);
+		char_b  = strchr( char_p, ' ')+1;
+		char_b  = strchr( char_b, ' ')+1;
+		char_b  = strchr( char_b, ' ') ;
+		*char_b =0;
+		Outtextxy( 5 , 395, char_p, strlen( char_p));
+		char_p = char_b+1;
+		char_b = strchr( char_p, ' ');
+		*char_b =0;
+		Outtextxy( 10 , 405, char_p, strlen( char_p));
+		ttxpos = 5;
+		ttypos = 450;
+		getviewsettings(&t_type);
+		ModeGI = Waardes[19]&8;
+		setviewport( ttxpos, ttypos, ttxpos+60, ttypos+20, 1);
+		setfillstyle ( SOLID_FILL, BLUE);
+		floodfill( 1,1, BLUE);
+		setfillstyle ( SOLID_FILL, LIGHTGRAY);
+		if( ModeGI >0)
+			{
+			setfillstyle ( SOLID_FILL, LIGHTGRAY);
+			setviewport( ttxpos, ttypos, ttxpos+40, ttypos+20, 1);
+			floodfill( 1,1, LIGHTGRAY);
+			setcolor( WHITE);
+			setcolor( RED);
+			rectangle(1,1,40,20);
+			strcpy ( temp_buf, "Auto");
+			outtextxy ( 5, 7, temp_buf);
+			} else
+					{
+					setviewport( ttxpos, ttypos, ttxpos+60, ttypos+20, 1);
+					floodfill( 1,1, LIGHTGRAY);
+					setcolor( WHITE);
+					setcolor(EGA_LIGHTCYAN);
+					rectangle(1,1,60,20);
+					strcpy ( temp_buf, "Manual");
+					outtextxy ( 8, 7, temp_buf);
+					}
+			setviewport( t_type.left,t_type.top,t_type.right,t_type.bottom,t_type.clip);
+
+			}
+
+		Get_data();
+		if( Loops++ >5)
+			{
+			display_data(0);
+			bore_hole_pos();
+			Loops=0;
+			}
+		DAY = my_time->tm_mday;
+		MIN = my_time->tm_min;
+
+		TotalLoops++;
+		if( old_minute != MIN)
+			{
+			clearviewport();
+			silverstroom();
+			memset( rx_buffer, 0, sizeof(rx_buffer));
+/*
+			sprintf( rx_buffer, "%d", TotalLoops);
+			Outtextxy( 5, 415, rx_buffer, strlen( rx_buffer));
+*/
+			file_open(0);
+			sprintf ( rx_buffer, "%02d:%02d ", my_time->tm_hour, my_time->tm_min);
+			for ( counter =0; counter < DATA_BYTES; counter++)
+				{
+				memset( temp_buf, 0, sizeof( temp_buf));
+				sprintf ( temp_buf, " %d", Waardes[counter]);
+				strcat ( rx_buffer, temp_buf);
+				}
+			memset( temp_buf, 0, sizeof( temp_buf));
+			if ( FlowTGI >0)
+				{
+				TempF =(float) MAKS_FLOW/MaksGIA[0];
+				FlowGF =(float) (TempF/FlowTGI);
+				FlowGF *=60;
+				FlowGF /=1000;
+				FlowGF *=TempF;
+				FlowTGF += FlowGF;
+				}
+			sprintf ( temp_buf, "%.1f\n", FlowTGF);
+			strcat ( rx_buffer, temp_buf);
+			sprintf ( temp_buf, "%13.1f\n", FlowTGF);
+			rectangle(415, 225, 528, 251);
+			OuttextXY(418, 228, "Total Flow Kl", 13, YELLOW);
+			OuttextXY(418, 238, temp_buf, strlen(temp_buf)-1, YELLOW);
+			old_minute = strlen( rx_buffer);
+			old_minute = fwrite( rx_buffer, sizeof( char), old_minute, fp_output);
+			fflush( fp_output);
+			fclose ( fp_output);
+			VleiSilvGI = VleiResGI = ResSilvGI = FlowTGI=0;
+			old_minute = MIN;
+			}
+		if( recRS232(  &karakter[0], -1) !=0)
+			if ( rx_packet ( rx_buffer) ==0)
+				{
+				char_p = rx_buffer;
+				while ( *char_p == 'U')
+				char_p++;
+				if ( *char_p == 'O')
+					{
+					char_p++;
+					switch( *char_p)
+							{
+						case 'B' :
+							fflush(fp_output);
+
+							char_p++;
+						break;
+						case 'H' :
+							char_p++;
+							tt = atoi( char_p);
+							char_b = strchr ( char_p, ' ')+1;
+							if( *char_b == '1')
+								{
+								tt= AND[tt];
+								} else
+									 {
+									 tt = 1<<tt;
+									 }
+						break;
+						case 'F':
+							do
+								{
+								recRS232(&kar, -1);
+								} while ( kar !=0);
+							char_p = strchr( char_p, ' ')+1;
+							char_b = strchr( char_p, '&');
+							*char_b =0;
+							fp_temp = fopen( char_p, "rt");
+							if ( fp_temp ==0)
+								{
+								error(2, char_p);
+								sprintf( rx_buffer, "Coul not found file !!  @&\r");
+								sendRS232( strlen( rx_buffer), &rx_buffer);
+								} else
+								{
+								do
+									{
+									memset( tx_buffer, 0 ,sizeof( tx_buffer));
+									size_of_write_buf =0;
+									do
+										{
+										tx_buffer[size_of_write_buf] = fgetc ( fp_temp);
+										if ( feof( fp_temp))
+											break;
+										} while( tx_buffer[size_of_write_buf++] != '\n');
+										Outtextxy( 10, 300, tx_buffer, 6);
+										strncpy ( &tx_buffer[size_of_write_buf-1], "&\r", 4);
+										sendRS232( strlen( tx_buffer), &tx_buffer);
+										err_tx = counts=0;
+										do
+											{
+											rx_buffer[counts] = recRS232( &kar, 1);
+											if( kar == 0)
+												{
+												counts++;
+												err_tx =0;
+												} else
+													if( err_tx++ > 3)
+														break;
+											}while ( rx_buffer[counts-1] != '&');
+										char_p = &rx_buffer[5];
+										if( counts > 11)
+											while( *char_p++ == 'U');
+										char_p--;
+										if( strncmp ( char_p, "Oack&",5) !=0)
+											break;
+										memset( tx_buffer, 0, sizeof( tx_buffer-23));
+										} while ( !feof( fp_temp));
+									strcat ( tx_buffer, "@&\r");
+									sendRS232( strlen( tx_buffer), &tx_buffer);
+									memset( tx_buffer, 0, sizeof( tx_buffer-23));
+								}
+						fclose ( fp_temp);
+						break;
+						case 'S':
+							fp_temp = fopen( "WITSAND.VAL", "wt");
+							if( fp_temp ==0)
+								{
+								error(2, "WITSAND.VAL");
+								exit(2);
+								}
+							counts=0;
+							memset( rx_buffer, 0, sizeof( rx_buffer));
+							do
+								{
+								counts=0;
+								memset( rx_buffer, 0, sizeof( rx_buffer));
+								do
+									{
+									rx_buffer[counts] = recRS232( &kar, 1);
+									if( kar == 0)
+										counts++;
+									else
+										break;
+									}while ( rx_buffer[counts-1] != '&');
+								counts = strlen (rx_buffer)-1;
+								if( counts > 3)
+									fwrite ( rx_buffer, sizeof(char), strlen( rx_buffer), fp_temp);
+								else
+									break;
+
+								}while ( rx_buffer[counts-1] != '@');
+								fclose( fp_temp);
+
+						break;
+						case 'D':
+							char_p = strchr( &rx_buffer[13], ',');
+							Loops  = atoi(char_p);
+							fclose( fp_output);
+							fp_output = fopen( karakter, "rt");
+							fseek ( fp_output,size_of_write_buf, SEEK_END );
+							for ( counts=0; counts < Loops; counts++)
+								{
+								fread ( temp_buf, sizeof(char), size_of_write_buf, fp_output);
+/* send data*/
+								}
+							fclose( fp_output);
+							fp_output = fopen( karakter, "at");
+						break;
+						case 'T':
+							char_p++;
+							mytime = atol( char_p)+1;
+							stime( &mytime);
+							ttxpos=5;ttypos=310;
+							getviewsettings(&t_type);
+							setviewport( ttxpos, ttypos, ttxpos+100, ttypos+ 60, 1);
+							getimage ( ttxpos, ttypos, ttxpos+100, ttypos+120, menu);
+						break;
+						case 'K':
+							ttxpos=5;ttypos=310;
+							getviewsettings(&t_type);
+							getimage ( ttxpos, ttypos, ttxpos+100, ttypos+120, menu);
+							setviewport( ttxpos, ttypos, ttxpos+100, ttypos+ 60, 1);
+							setfillstyle ( SOLID_FILL, RED);
+							floodfill( 3,3,RED);
+							getlinesettings( &l_type);
+							memset( rx_buffer,0 ,sizeof( rx_buffer));
+							sprintf( rx_buffer,"%02d:%02d", my_time->tm_hour, my_time->tm_min);
+							for ( Loops=0; Loops < DATA_bytes; Loops++)
+							 {
+							 memset( temp_buf,0 ,sizeof( temp_buf));
+							 sprintf( temp_buf," %d", Waardes[Loops]);
+							 strcat( rx_buffer, temp_buf);
+							 }
+						 sprintf ( temp_buf, " %d", ModeGI);
+						 strcat ( rx_buffer, temp_buf);
+						 sprintf ( temp_buf, "%.1f&&\n&&", FlowTGF);
+						 strcat ( rx_buffer, temp_buf);
+						 sendRS232( strlen( rx_buffer) ,  &rx_buffer);
+					break;
+					case 'V' :
+					char_p = strchr( char_p, ' ')+1;
+					break;
+					case 'M' :
+					ModeGI = atoi( ++char_p);
+					break;
+					}
+					putimage ( 0, 0, menu, COPY_PUT);
+					setviewport( t_type.left,t_type.top,t_type.right,t_type.bottom,t_type.clip);
+					Loops = 1000;
+					}
+				}
+		}
+ }

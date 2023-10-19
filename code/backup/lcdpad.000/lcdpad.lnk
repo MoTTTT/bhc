@@ -1,0 +1,1 @@
+lcdpad.obj,sio1.obj,putchar.obj,n3inc.obj,cbkey.obj to lcdpad.abs ramsize(256) NOOVERLAY PRINT (lnk.lst)

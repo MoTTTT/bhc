@@ -1,0 +1,3037 @@
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 1   
+
+
+DOS C51 COMPILER V3.40, COMPILATION OF MODULE BHC
+OBJECT MODULE PLACED IN BHC.OBJ
+COMPILER INVOKED BY: C:\C51\BIN\C51.EXE BHC.C CODE SYMBOLS DEBUG OBJECTEXTEND
+
+stmt level    source
+
+   1          /*			Copyright Q Solutions				*/
+   2          /*	File:		bhc.c						*/
+   3          /*	Programmer:	MoT						*/
+   4          /*	Project:	Borehole Controller				*/
+   5          /*	Module:		Main Controller Module				*/
+   6          /*									*/
+   7          /*			History						*/
+   8          /* 00:08 21/04/1997 	Written from scratch				*/
+   9          /* 11:29am 07-01-1997 	Source lines: 1262	(not incl library)	*/
+  10          /* 11:41am 07-13-1997  	Source lines: 1505	(library: 1464 lines)	*/
+  11          /*			First beta release: V0.01			*/
+  12          /*									*/
+  13          
+  14          /*			Compiler Directives				*/
+  15          #pragma		ROM (COMPACT)
+  16          #pragma		LARGE
+  17          /*			Standard Library Header Files			*/
+  18          #include	<stdio.h>
+  19          #include	<reg552.h>
+  20          /*			uNode Library Header Files			*/
+  21          #include	<types.h>		/* byte, uint, and ulong defines*/
+  22          #include	<rtc.h>			/* Real time clock routines	*/
+  23          #include	<time.h>		/* Time related routines	*/
+  24          #include	<ce.h>			/* Control Engine routines	*/
+  25          #include	<wdog.h>		/* Watchdog refresh routine	*/
+  26          #include	"ui.c"			/* Include User Interface Code	*/
+  27          
+  28          sbit BHC_TEST= 0xC6;			/* UI Timing Test Point		*/
+  29          
+  30          void	initialise	( )		/* Initialise Hardware		*/
+  31          {
+  32   1      	EA=		1;		/* Enable Global Interrupt	*/
+  33   1      	BHC_TEST=	0;		/* Clear UI Timing Test point	*/
+  34   1      	PCON|=		0x80;		/* Double Baud Rate		*/
+  35   1      	init_ce		( );		/* Initialise Control Engine	*/
+  36   1      	init_serial	( B192 );	/* Initialise Serial Port	*/
+  37   1      	init_iic	( BHC_ADR );	/* Initialise I2C Bus 		*/
+  38   1      	init_rtc	( );		/* Initialise Real Time Clock	*/
+  39   1      	init_rkpad	( );		/* Initialise I2C Keypad	*/
+  40   1      	init_i2clcd	( );		/* Initialise I2C Bus LCD	*/
+  41   1      	ce_sig		( S_PT );	/* Toggle Power LED		*/
+  42   1      	get_time	( &ce_t0 );	/* Store CE startup time	*/
+  43   1      }
+  44          
+  45          void	proc_db	( void )		/* Database Log Processor	*/
+  46          {
+  47   1      	db_flag= 0;			/* Reset timer flag		*/
+  48   1      	out_stream=	IO_232;		/* Print to serial port		*/
+  49   1      	if	( get_time(&ce_tn) )	/* Store CE time		*/
+  50   1      	{
+  51   2      		if (!tim2lng(&ce_tn))	/* Check for midnight		*/
+  52   2      			ce_sig(S_RF);	/* Reset Total Flow		*/
+  53   2      		print_time ( &ce_tn );	/* Print the time		*/
+  54   2      		printf	( " " );	/* Print a delimiter		*/
+  55   2      	}
+  56   1      	else	printf	( " NO RTC! " );/* Print RTC error		*/
+  57   1      	ui_slog ( );			/* Log status to serial port	*/
+  58   1      }
+  59          
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 2   
+
+  60          void	main	( void )		/* Main Loop			*/
+  61          {
+  62   1      	initialise	( );		/* Set up drivers, sign on	*/
+  63   1      	while		( 1 )		/* Repeat Forever		*/
+  64   1      	{
+  65   2      		if	( test_rkey( ))	/* Remote keypress		*/
+  66   2      			proc_rkey ( );	/* Process input		*/
+  67   2      		if	( db_flag )	/* Data Logger Timer		*/
+  68   2      			proc_db	( );
+  69   2      		if	( ui_flag )	/* Display refresh period	*/
+  70   2      		{
+  71   3      			BHC_TEST= 1;	/* UI Timing test point start	*/
+  72   3      			wdog	( 0 );	/* Watchdog: (CE and UI running)*/
+  73   3      			ui_update ( );	/* Refresh info display		*/
+  74   3      			BHC_TEST= 0;	/* UI Timing test point end	*/
+  75   3      		}
+  76   2      	}
+  77   1      }
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 3   
+
+ASSEMBLY LISTING OF GENERATED OBJECT CODE
+
+
+             ; FUNCTION put_menu (BEGIN)
+                                           ; SOURCE LINE # 26
+                                           ; SOURCE LINE # 27
+                                           ; SOURCE LINE # 28
+0000 7F80          MOV     R7,#080H
+0002 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 29
+0005 900000  R     MOV     DPTR,#m_state
+0008 E0            MOVX    A,@DPTR
+0009 6016          JZ      ?C0003
+000B 14            DEC     A
+000C 6022          JZ      ?C0004
+000E 14            DEC     A
+000F 602E          JZ      ?C0005
+0011 14            DEC     A
+0012 603A          JZ      ?C0006
+0014 14            DEC     A
+0015 6046          JZ      ?C0007
+0017 14            DEC     A
+0018 6052          JZ      ?C0008
+001A 8000          SJMP    ?C0002
+                                           ; SOURCE LINE # 30
+                                           ; SOURCE LINE # 31
+001C         ?C0002:
+001C E4            CLR     A
+001D 900000  R     MOV     DPTR,#m_state
+0020 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 32
+0021         ?C0003:
+0021 900000  R     MOV     DPTR,#s_menu
+0024 E0            MOVX    A,@DPTR
+0025 FB            MOV     R3,A
+0026 A3            INC     DPTR
+0027 E0            MOVX    A,@DPTR
+0028 FA            MOV     R2,A
+0029 A3            INC     DPTR
+002A E0            MOVX    A,@DPTR
+002B F9            MOV     R1,A
+002C 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 33
+002F 22            RET     
+                                           ; SOURCE LINE # 34
+0030         ?C0004:
+0030 900000  R     MOV     DPTR,#s_stime
+0033 E0            MOVX    A,@DPTR
+0034 FB            MOV     R3,A
+0035 A3            INC     DPTR
+0036 E0            MOVX    A,@DPTR
+0037 FA            MOV     R2,A
+0038 A3            INC     DPTR
+0039 E0            MOVX    A,@DPTR
+003A F9            MOV     R1,A
+003B 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 35
+003E 22            RET     
+                                           ; SOURCE LINE # 36
+003F         ?C0005:
+003F 900000  R     MOV     DPTR,#s_sflow
+0042 E0            MOVX    A,@DPTR
+0043 FB            MOV     R3,A
+0044 A3            INC     DPTR
+0045 E0            MOVX    A,@DPTR
+0046 FA            MOV     R2,A
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 4   
+
+0047 A3            INC     DPTR
+0048 E0            MOVX    A,@DPTR
+0049 F9            MOV     R1,A
+004A 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 37
+004D 22            RET     
+                                           ; SOURCE LINE # 38
+004E         ?C0006:
+004E 900000  R     MOV     DPTR,#s_rlll
+0051 E0            MOVX    A,@DPTR
+0052 FB            MOV     R3,A
+0053 A3            INC     DPTR
+0054 E0            MOVX    A,@DPTR
+0055 FA            MOV     R2,A
+0056 A3            INC     DPTR
+0057 E0            MOVX    A,@DPTR
+0058 F9            MOV     R1,A
+0059 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 39
+005C 22            RET     
+                                           ; SOURCE LINE # 40
+005D         ?C0007:
+005D 900000  R     MOV     DPTR,#s_sll
+0060 E0            MOVX    A,@DPTR
+0061 FB            MOV     R3,A
+0062 A3            INC     DPTR
+0063 E0            MOVX    A,@DPTR
+0064 FA            MOV     R2,A
+0065 A3            INC     DPTR
+0066 E0            MOVX    A,@DPTR
+0067 F9            MOV     R1,A
+0068 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 41
+006B 22            RET     
+                                           ; SOURCE LINE # 42
+006C         ?C0008:
+006C 900000  E     MOV     DPTR,#ce_run
+006F E0            MOVX    A,@DPTR
+0070 700F          JNZ     ?C0009
+                                           ; SOURCE LINE # 43
+0072 900000  R     MOV     DPTR,#s_start
+0075 E0            MOVX    A,@DPTR
+0076 FB            MOV     R3,A
+0077 A3            INC     DPTR
+0078 E0            MOVX    A,@DPTR
+0079 FA            MOV     R2,A
+007A A3            INC     DPTR
+007B E0            MOVX    A,@DPTR
+007C F9            MOV     R1,A
+007D 120000  E     LCALL   _printf
+0080 22            RET     
+0081         ?C0009:
+                                           ; SOURCE LINE # 44
+0081 900000  R     MOV     DPTR,#s_stop
+0084 E0            MOVX    A,@DPTR
+0085 FB            MOV     R3,A
+0086 A3            INC     DPTR
+0087 E0            MOVX    A,@DPTR
+0088 FA            MOV     R2,A
+0089 A3            INC     DPTR
+008A E0            MOVX    A,@DPTR
+008B F9            MOV     R1,A
+008C 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 45
+                                           ; SOURCE LINE # 46
+                                           ; SOURCE LINE # 47
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 5   
+
+008F         ?C0011:
+008F 22            RET     
+             ; FUNCTION put_menu (END)
+
+             ; FUNCTION m_reset (BEGIN)
+                                           ; SOURCE LINE # 49
+                                           ; SOURCE LINE # 50
+                                           ; SOURCE LINE # 51
+0000 7F0C          MOV     R7,#0CH
+0002 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 52
+0005 E4            CLR     A
+0006 900000  R     MOV     DPTR,#cursor
+0009 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 53
+000A 22            RET     
+             ; FUNCTION m_reset (END)
+
+             ; FUNCTION set_flow (BEGIN)
+                                           ; SOURCE LINE # 55
+                                           ; SOURCE LINE # 56
+                                           ; SOURCE LINE # 57
+0000 7F80          MOV     R7,#080H
+0002 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 58
+0005 120000  R     LCALL   m_reset
+                                           ; SOURCE LINE # 59
+0008 900000  R     MOV     DPTR,#f_new
+000B E0            MOVX    A,@DPTR
+000C FF            MOV     R7,A
+000D 120000  E     LCALL   _ce_sflow
+0010 500F          JNC     ?C0013
+                                           ; SOURCE LINE # 60
+0012 900000  R     MOV     DPTR,#s_fset
+0015 E0            MOVX    A,@DPTR
+0016 FB            MOV     R3,A
+0017 A3            INC     DPTR
+0018 E0            MOVX    A,@DPTR
+0019 FA            MOV     R2,A
+001A A3            INC     DPTR
+001B E0            MOVX    A,@DPTR
+001C F9            MOV     R1,A
+001D 120000  E     LCALL   _printf
+0020 22            RET     
+0021         ?C0013:
+                                           ; SOURCE LINE # 61
+0021 900000  R     MOV     DPTR,#s_oor
+0024 E0            MOVX    A,@DPTR
+0025 FB            MOV     R3,A
+0026 A3            INC     DPTR
+0027 E0            MOVX    A,@DPTR
+0028 FA            MOV     R2,A
+0029 A3            INC     DPTR
+002A E0            MOVX    A,@DPTR
+002B F9            MOV     R1,A
+002C 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 62
+002F         ?C0015:
+002F 22            RET     
+             ; FUNCTION set_flow (END)
+
+             ; FUNCTION set_llev (BEGIN)
+                                           ; SOURCE LINE # 64
+                                           ; SOURCE LINE # 65
+                                           ; SOURCE LINE # 66
+0000 7F80          MOV     R7,#080H
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 6   
+
+0002 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 67
+0005 120000  R     LCALL   m_reset
+                                           ; SOURCE LINE # 68
+0008 900000  R     MOV     DPTR,#l_new
+000B E0            MOVX    A,@DPTR
+000C FF            MOV     R7,A
+000D 120000  E     LCALL   _ce_sllev
+0010 500F          JNC     ?C0016
+                                           ; SOURCE LINE # 69
+0012 900000  R     MOV     DPTR,#s_lset
+0015 E0            MOVX    A,@DPTR
+0016 FB            MOV     R3,A
+0017 A3            INC     DPTR
+0018 E0            MOVX    A,@DPTR
+0019 FA            MOV     R2,A
+001A A3            INC     DPTR
+001B E0            MOVX    A,@DPTR
+001C F9            MOV     R1,A
+001D 120000  E     LCALL   _printf
+0020 22            RET     
+0021         ?C0016:
+                                           ; SOURCE LINE # 70
+0021 900000  R     MOV     DPTR,#s_oor
+0024 E0            MOVX    A,@DPTR
+0025 FB            MOV     R3,A
+0026 A3            INC     DPTR
+0027 E0            MOVX    A,@DPTR
+0028 FA            MOV     R2,A
+0029 A3            INC     DPTR
+002A E0            MOVX    A,@DPTR
+002B F9            MOV     R1,A
+002C 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 71
+002F         ?C0018:
+002F 22            RET     
+             ; FUNCTION set_llev (END)
+
+             ; FUNCTION _p_itime (BEGIN)
+0000 900000  R     MOV     DPTR,#in
+0003 EF            MOV     A,R7
+0004 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 73
+                                           ; SOURCE LINE # 74
+                                           ; SOURCE LINE # 76
+0005 E0            MOVX    A,@DPTR
+0006 24D0          ADD     A,#0D0H
+0008 A3            INC     DPTR
+0009 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 77
+000A 900000  R     MOV     DPTR,#cursor
+000D E0            MOVX    A,@DPTR
+000E 24F9          ADD     A,#0F9H
+0010 603F          JZ      ?C0021
+0012 14            DEC     A
+0013 606B          JZ      ?C0023
+0015 24FE          ADD     A,#0FEH
+0017 7002          JNZ     $ + 4H
+0019 0100    R     AJMP    ?C0025
+001B 14            DEC     A
+001C 7002          JNZ     $ + 4H
+001E 0100    R     AJMP    ?C0027
+0020 24FE          ADD     A,#0FEH
+0022 7002          JNZ     $ + 4H
+0024 0100    R     AJMP    ?C0029
+0026 14            DEC     A
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 7   
+
+0027 7002          JNZ     $ + 4H
+0029 0100    R     AJMP    ?C0031
+002B 240E          ADD     A,#0EH
+002D 6002          JZ      $ + 4H
+002F 0100    R     AJMP    ?C0033
+                                           ; SOURCE LINE # 78
+                                           ; SOURCE LINE # 79
+0031         ?C0020:
+0031 900000  R     MOV     DPTR,#s_ptime
+0034 E0            MOVX    A,@DPTR
+0035 FB            MOV     R3,A
+0036 A3            INC     DPTR
+0037 E0            MOVX    A,@DPTR
+0038 FA            MOV     R2,A
+0039 A3            INC     DPTR
+003A E0            MOVX    A,@DPTR
+003B F9            MOV     R1,A
+003C 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 80
+003F 900000  R     MOV     DPTR,#cursor
+0042 7407          MOV     A,#07H
+0044 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 81
+0045 2480          ADD     A,#080H
+0047 FF            MOV     R7,A
+0048 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 82
+004B 7F0F          MOV     R7,#0FH
+004D 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 83
+0050 22            RET     
+                                           ; SOURCE LINE # 84
+0051         ?C0021:
+0051 900000  R     MOV     DPTR,#t
+0054 E0            MOVX    A,@DPTR
+0055 C3            CLR     C
+0056 9403          SUBB    A,#03H
+0058 4002          JC      $ + 4H
+005A 0100    R     AJMP    ?C0034
+                                           ; SOURCE LINE # 85
+                                           ; SOURCE LINE # 86
+005C 900000  R     MOV     DPTR,#cursor
+005F E0            MOVX    A,@DPTR
+0060 2480          ADD     A,#080H
+0062 FF            MOV     R7,A
+0063 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 87
+0066 900000  R     MOV     DPTR,#in
+0069 E0            MOVX    A,@DPTR
+006A FF            MOV     R7,A
+006B 120000  R     LCALL   _putchar
+                                           ; SOURCE LINE # 88
+006E 900000  R     MOV     DPTR,#t
+0071 E0            MOVX    A,@DPTR
+0072 C4            SWAP    A
+0073 54F0          ANL     A,#0F0H
+0075 900000  R     MOV     DPTR,#t_in
+0078 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 89
+0079 900000  R     MOV     DPTR,#cursor
+007C E0            MOVX    A,@DPTR
+007D 04            INC     A
+007E F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 90
+                                           ; SOURCE LINE # 91
+007F 22            RET     
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 8   
+
+                                           ; SOURCE LINE # 92
+0080         ?C0023:
+0080 900000  R     MOV     DPTR,#t_in
+0083 E0            MOVX    A,@DPTR
+0084 FF            MOV     R7,A
+0085 900000  R     MOV     DPTR,#t
+0088 E0            MOVX    A,@DPTR
+0089 2F            ADD     A,R7
+008A F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 93
+008B E0            MOVX    A,@DPTR
+008C C3            CLR     C
+008D 9425          SUBB    A,#025H
+008F 4002          JC      $ + 4H
+0091 0100    R     AJMP    ?C0034
+                                           ; SOURCE LINE # 94
+                                           ; SOURCE LINE # 95
+0093 900000  R     MOV     DPTR,#cursor
+0096 E0            MOVX    A,@DPTR
+0097 2480          ADD     A,#080H
+0099 FF            MOV     R7,A
+009A 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 96
+009D 900000  R     MOV     DPTR,#in
+00A0 E0            MOVX    A,@DPTR
+00A1 FF            MOV     R7,A
+00A2 120000  R     LCALL   _putchar
+                                           ; SOURCE LINE # 97
+00A5 900000  R     MOV     DPTR,#t
+00A8 E0            MOVX    A,@DPTR
+00A9 900000  R     MOV     DPTR,#t_in
+00AC F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 98
+00AD 900000  R     MOV     DPTR,#cursor
+00B0 E0            MOVX    A,@DPTR
+00B1 2402          ADD     A,#02H
+00B3 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 99
+                                           ; SOURCE LINE # 100
+00B4 22            RET     
+                                           ; SOURCE LINE # 101
+00B5         ?C0025:
+00B5 900000  R     MOV     DPTR,#t
+00B8 E0            MOVX    A,@DPTR
+00B9 C3            CLR     C
+00BA 9406          SUBB    A,#06H
+00BC 4002          JC      $ + 4H
+00BE 0100    R     AJMP    ?C0034
+                                           ; SOURCE LINE # 102
+                                           ; SOURCE LINE # 103
+00C0 900000  R     MOV     DPTR,#cursor
+00C3 E0            MOVX    A,@DPTR
+00C4 2480          ADD     A,#080H
+00C6 FF            MOV     R7,A
+00C7 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 104
+00CA 900000  R     MOV     DPTR,#in
+00CD E0            MOVX    A,@DPTR
+00CE FF            MOV     R7,A
+00CF 120000  R     LCALL   _putchar
+                                           ; SOURCE LINE # 105
+00D2 900000  R     MOV     DPTR,#t
+00D5 E0            MOVX    A,@DPTR
+00D6 C4            SWAP    A
+00D7 54F0          ANL     A,#0F0H
+00D9 900000  R     MOV     DPTR,#t_in+01H
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 9   
+
+00DC F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 106
+00DD 900000  R     MOV     DPTR,#cursor
+00E0 E0            MOVX    A,@DPTR
+00E1 04            INC     A
+00E2 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 107
+                                           ; SOURCE LINE # 108
+00E3 22            RET     
+                                           ; SOURCE LINE # 109
+00E4         ?C0027:
+00E4 900000  R     MOV     DPTR,#t_in+01H
+00E7 E0            MOVX    A,@DPTR
+00E8 FF            MOV     R7,A
+00E9 900000  R     MOV     DPTR,#t
+00EC E0            MOVX    A,@DPTR
+00ED 2F            ADD     A,R7
+00EE F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 110
+00EF E0            MOVX    A,@DPTR
+00F0 C3            CLR     C
+00F1 9460          SUBB    A,#060H
+00F3 4002          JC      $ + 4H
+00F5 0100    R     AJMP    ?C0034
+                                           ; SOURCE LINE # 111
+                                           ; SOURCE LINE # 112
+00F7 900000  R     MOV     DPTR,#cursor
+00FA E0            MOVX    A,@DPTR
+00FB 2480          ADD     A,#080H
+00FD FF            MOV     R7,A
+00FE 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 113
+0101 900000  R     MOV     DPTR,#in
+0104 E0            MOVX    A,@DPTR
+0105 FF            MOV     R7,A
+0106 120000  R     LCALL   _putchar
+                                           ; SOURCE LINE # 114
+0109 900000  R     MOV     DPTR,#t
+010C E0            MOVX    A,@DPTR
+010D 900000  R     MOV     DPTR,#t_in+01H
+0110 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 115
+0111 900000  R     MOV     DPTR,#cursor
+0114 E0            MOVX    A,@DPTR
+0115 2402          ADD     A,#02H
+0117 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 116
+                                           ; SOURCE LINE # 117
+0118 22            RET     
+                                           ; SOURCE LINE # 118
+0119         ?C0029:
+0119 900000  R     MOV     DPTR,#t
+011C E0            MOVX    A,@DPTR
+011D C3            CLR     C
+011E 9406          SUBB    A,#06H
+0120 505E          JNC     ?C0034
+                                           ; SOURCE LINE # 119
+                                           ; SOURCE LINE # 120
+0122 900000  R     MOV     DPTR,#cursor
+0125 E0            MOVX    A,@DPTR
+0126 2480          ADD     A,#080H
+0128 FF            MOV     R7,A
+0129 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 121
+012C 900000  R     MOV     DPTR,#in
+012F E0            MOVX    A,@DPTR
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 10  
+
+0130 FF            MOV     R7,A
+0131 120000  R     LCALL   _putchar
+                                           ; SOURCE LINE # 122
+0134 900000  R     MOV     DPTR,#t
+0137 E0            MOVX    A,@DPTR
+0138 C4            SWAP    A
+0139 54F0          ANL     A,#0F0H
+013B 900000  R     MOV     DPTR,#t_in+02H
+013E F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 123
+013F 900000  R     MOV     DPTR,#cursor
+0142 E0            MOVX    A,@DPTR
+0143 04            INC     A
+0144 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 124
+                                           ; SOURCE LINE # 125
+0145 22            RET     
+                                           ; SOURCE LINE # 126
+0146         ?C0031:
+0146 900000  R     MOV     DPTR,#t_in+02H
+0149 E0            MOVX    A,@DPTR
+014A FF            MOV     R7,A
+014B 900000  R     MOV     DPTR,#t
+014E E0            MOVX    A,@DPTR
+014F 2F            ADD     A,R7
+0150 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 127
+0151 E0            MOVX    A,@DPTR
+0152 FF            MOV     R7,A
+0153 C3            CLR     C
+0154 9460          SUBB    A,#060H
+0156 5028          JNC     ?C0034
+                                           ; SOURCE LINE # 128
+                                           ; SOURCE LINE # 129
+0158 900000  R     MOV     DPTR,#t_in+02H
+015B EF            MOV     A,R7
+015C F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 130
+015D 7F80          MOV     R7,#080H
+015F 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 131
+0162 900000  R     MOV     DPTR,#s_tset
+0165 E0            MOVX    A,@DPTR
+0166 FB            MOV     R3,A
+0167 A3            INC     DPTR
+0168 E0            MOVX    A,@DPTR
+0169 FA            MOV     R2,A
+016A A3            INC     DPTR
+016B E0            MOVX    A,@DPTR
+016C F9            MOV     R1,A
+016D 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 132
+0170 7B02          MOV     R3,#02H
+0172 7A00    R     MOV     R2,#HIGH t_in
+0174 7900    R     MOV     R1,#LOW t_in
+0176 120000  E     LCALL   _set_time
+                                           ; SOURCE LINE # 133
+0179 120000  R     LCALL   m_reset
+                                           ; SOURCE LINE # 134
+                                           ; SOURCE LINE # 135
+017C 22            RET     
+                                           ; SOURCE LINE # 136
+017D         ?C0033:
+017D 120000  R     LCALL   m_reset
+                                           ; SOURCE LINE # 137
+                                           ; SOURCE LINE # 138
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 11  
+
+0180         ?C0034:
+0180 22            RET     
+             ; FUNCTION _p_itime (END)
+
+             ; FUNCTION _p_iflow (BEGIN)
+0000 900000  R     MOV     DPTR,#in
+0003 EF            MOV     A,R7
+0004 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 140
+                                           ; SOURCE LINE # 141
+                                           ; SOURCE LINE # 142
+0005 900000  R     MOV     DPTR,#cursor
+0008 E0            MOVX    A,@DPTR
+0009 24F8          ADD     A,#0F8H
+000B 604A          JZ      ?C0037
+000D 14            DEC     A
+000E 7002          JNZ     $ + 4H
+0010 0100    R     AJMP    ?C0039
+0012 2409          ADD     A,#09H
+0014 6002          JZ      $ + 4H
+0016 0100    R     AJMP    ?C0041
+                                           ; SOURCE LINE # 143
+                                           ; SOURCE LINE # 144
+0018         ?C0036:
+0018 900000  R     MOV     DPTR,#cursor
+001B 7408          MOV     A,#08H
+001D F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 145
+001E 900000  R     MOV     DPTR,#s_pflow
+0021 E0            MOVX    A,@DPTR
+0022 FB            MOV     R3,A
+0023 A3            INC     DPTR
+0024 E0            MOVX    A,@DPTR
+0025 FA            MOV     R2,A
+0026 A3            INC     DPTR
+0027 E0            MOVX    A,@DPTR
+0028 F9            MOV     R1,A
+0029 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 146
+002C 900000  R     MOV     DPTR,#cursor
+002F E0            MOVX    A,@DPTR
+0030 2480          ADD     A,#080H
+0032 FF            MOV     R7,A
+0033 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 147
+0036 7B05          MOV     R3,#05H
+0038 7A00    R     MOV     R2,#HIGH ?SC_527
+003A 7900    R     MOV     R1,#LOW ?SC_527
+003C 900000  E     MOV     DPTR,#f_set
+003F E0            MOVX    A,@DPTR
+0040 900000  E     MOV     DPTR,#?_printf?BYTE+03H
+0043 F0            MOVX    @DPTR,A
+0044 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 148
+0047 900000  R     MOV     DPTR,#cursor
+004A E0            MOVX    A,@DPTR
+004B 2480          ADD     A,#080H
+004D FF            MOV     R7,A
+004E 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 149
+0051 7F0F          MOV     R7,#0FH
+0053 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 150
+0056 22            RET     
+                                           ; SOURCE LINE # 151
+0057         ?C0037:
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 12  
+
+                                           ; SOURCE LINE # 152
+0057 900000  R     MOV     DPTR,#in
+005A E0            MOVX    A,@DPTR
+005B B4450C        CJNE    A,#045H,?C0038
+                                           ; SOURCE LINE # 153
+                                           ; SOURCE LINE # 154
+005E 900000  E     MOV     DPTR,#f_set
+0061 E0            MOVX    A,@DPTR
+0062 900000  R     MOV     DPTR,#f_new
+0065 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 155
+0066 120000  R     LCALL   set_flow
+                                           ; SOURCE LINE # 156
+0069 22            RET     
+                                           ; SOURCE LINE # 157
+006A         ?C0038:
+                                           ; SOURCE LINE # 158
+006A 900000  R     MOV     DPTR,#cursor
+006D E0            MOVX    A,@DPTR
+006E 2480          ADD     A,#080H
+0070 FF            MOV     R7,A
+0071 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 159
+0074 900000  R     MOV     DPTR,#in
+0077 E0            MOVX    A,@DPTR
+0078 FF            MOV     R7,A
+0079 120000  R     LCALL   _putchar
+                                           ; SOURCE LINE # 160
+007C 900000  R     MOV     DPTR,#in
+007F E0            MOVX    A,@DPTR
+0080 24D0          ADD     A,#0D0H
+0082 900000  R     MOV     DPTR,#f_new
+0085 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 161
+0086 900000  R     MOV     DPTR,#cursor
+0089 E0            MOVX    A,@DPTR
+008A 04            INC     A
+008B F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 162
+008C 22            RET     
+                                           ; SOURCE LINE # 163
+008D         ?C0039:
+                                           ; SOURCE LINE # 164
+008D 900000  R     MOV     DPTR,#in
+0090 E0            MOVX    A,@DPTR
+0091 B44504        CJNE    A,#045H,?C0040
+                                           ; SOURCE LINE # 165
+                                           ; SOURCE LINE # 166
+0094 120000  R     LCALL   set_flow
+                                           ; SOURCE LINE # 167
+0097 22            RET     
+                                           ; SOURCE LINE # 168
+0098         ?C0040:
+                                           ; SOURCE LINE # 169
+0098 900000  R     MOV     DPTR,#cursor
+009B E0            MOVX    A,@DPTR
+009C 2480          ADD     A,#080H
+009E FF            MOV     R7,A
+009F 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 170
+00A2 900000  R     MOV     DPTR,#in
+00A5 E0            MOVX    A,@DPTR
+00A6 FF            MOV     R7,A
+00A7 120000  R     LCALL   _putchar
+                                           ; SOURCE LINE # 171
+00AA 900000  R     MOV     DPTR,#f_new
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 13  
+
+00AD E0            MOVX    A,@DPTR
+00AE 75F00A        MOV     B,#0AH
+00B1 A4            MUL     AB
+00B2 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 172
+00B3 900000  R     MOV     DPTR,#in
+00B6 E0            MOVX    A,@DPTR
+00B7 24D0          ADD     A,#0D0H
+00B9 FF            MOV     R7,A
+00BA 900000  R     MOV     DPTR,#f_new
+00BD E0            MOVX    A,@DPTR
+00BE 2F            ADD     A,R7
+00BF F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 173
+00C0 120000  R     LCALL   set_flow
+                                           ; SOURCE LINE # 174
+00C3 22            RET     
+                                           ; SOURCE LINE # 175
+00C4         ?C0041:
+00C4 120000  R     LCALL   m_reset
+                                           ; SOURCE LINE # 176
+                                           ; SOURCE LINE # 177
+00C7         ?C0042:
+00C7 22            RET     
+             ; FUNCTION _p_iflow (END)
+
+             ; FUNCTION _p_ilevel (BEGIN)
+0000 900000  R     MOV     DPTR,#in
+0003 EF            MOV     A,R7
+0004 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 179
+                                           ; SOURCE LINE # 180
+                                           ; SOURCE LINE # 181
+0005 900000  R     MOV     DPTR,#cursor
+0008 E0            MOVX    A,@DPTR
+0009 24F5          ADD     A,#0F5H
+000B 604A          JZ      ?C0045
+000D 14            DEC     A
+000E 7002          JNZ     $ + 4H
+0010 0100    R     AJMP    ?C0047
+0012 240C          ADD     A,#0CH
+0014 6002          JZ      $ + 4H
+0016 0100    R     AJMP    ?C0049
+                                           ; SOURCE LINE # 182
+                                           ; SOURCE LINE # 183
+0018         ?C0044:
+0018 900000  R     MOV     DPTR,#cursor
+001B 740B          MOV     A,#0BH
+001D F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 184
+001E 900000  R     MOV     DPTR,#s_pll
+0021 E0            MOVX    A,@DPTR
+0022 FB            MOV     R3,A
+0023 A3            INC     DPTR
+0024 E0            MOVX    A,@DPTR
+0025 FA            MOV     R2,A
+0026 A3            INC     DPTR
+0027 E0            MOVX    A,@DPTR
+0028 F9            MOV     R1,A
+0029 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 185
+002C 900000  R     MOV     DPTR,#cursor
+002F E0            MOVX    A,@DPTR
+0030 2480          ADD     A,#080H
+0032 FF            MOV     R7,A
+0033 120000  E     LCALL   _set_rlcd
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 14  
+
+                                           ; SOURCE LINE # 186
+0036 7B05          MOV     R3,#05H
+0038 7A00    R     MOV     R2,#HIGH ?SC_527
+003A 7900    R     MOV     R1,#LOW ?SC_527
+003C 900000  E     MOV     DPTR,#l_set
+003F E0            MOVX    A,@DPTR
+0040 900000  E     MOV     DPTR,#?_printf?BYTE+03H
+0043 F0            MOVX    @DPTR,A
+0044 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 187
+0047 900000  R     MOV     DPTR,#cursor
+004A E0            MOVX    A,@DPTR
+004B 2480          ADD     A,#080H
+004D FF            MOV     R7,A
+004E 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 188
+0051 7F0F          MOV     R7,#0FH
+0053 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 189
+0056 22            RET     
+                                           ; SOURCE LINE # 190
+0057         ?C0045:
+                                           ; SOURCE LINE # 191
+0057 900000  R     MOV     DPTR,#in
+005A E0            MOVX    A,@DPTR
+005B B4450C        CJNE    A,#045H,?C0046
+                                           ; SOURCE LINE # 192
+                                           ; SOURCE LINE # 193
+005E 900000  E     MOV     DPTR,#l_set
+0061 E0            MOVX    A,@DPTR
+0062 900000  R     MOV     DPTR,#l_new
+0065 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 194
+0066 120000  R     LCALL   set_llev
+                                           ; SOURCE LINE # 195
+0069 22            RET     
+                                           ; SOURCE LINE # 196
+006A         ?C0046:
+                                           ; SOURCE LINE # 197
+006A 900000  R     MOV     DPTR,#cursor
+006D E0            MOVX    A,@DPTR
+006E 2480          ADD     A,#080H
+0070 FF            MOV     R7,A
+0071 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 198
+0074 900000  R     MOV     DPTR,#in
+0077 E0            MOVX    A,@DPTR
+0078 FF            MOV     R7,A
+0079 120000  R     LCALL   _putchar
+                                           ; SOURCE LINE # 199
+007C 900000  R     MOV     DPTR,#in
+007F E0            MOVX    A,@DPTR
+0080 24D0          ADD     A,#0D0H
+0082 900000  R     MOV     DPTR,#l_new
+0085 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 200
+0086 900000  R     MOV     DPTR,#cursor
+0089 E0            MOVX    A,@DPTR
+008A 04            INC     A
+008B F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 201
+008C 22            RET     
+                                           ; SOURCE LINE # 202
+008D         ?C0047:
+                                           ; SOURCE LINE # 203
+008D 900000  R     MOV     DPTR,#in
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 15  
+
+0090 E0            MOVX    A,@DPTR
+0091 B44504        CJNE    A,#045H,?C0048
+                                           ; SOURCE LINE # 204
+                                           ; SOURCE LINE # 205
+0094 120000  R     LCALL   set_llev
+                                           ; SOURCE LINE # 206
+0097 22            RET     
+                                           ; SOURCE LINE # 207
+0098         ?C0048:
+                                           ; SOURCE LINE # 208
+0098 900000  R     MOV     DPTR,#cursor
+009B E0            MOVX    A,@DPTR
+009C 2480          ADD     A,#080H
+009E FF            MOV     R7,A
+009F 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 209
+00A2 900000  R     MOV     DPTR,#in
+00A5 E0            MOVX    A,@DPTR
+00A6 FF            MOV     R7,A
+00A7 120000  R     LCALL   _putchar
+                                           ; SOURCE LINE # 210
+00AA 900000  R     MOV     DPTR,#l_new
+00AD E0            MOVX    A,@DPTR
+00AE 75F00A        MOV     B,#0AH
+00B1 A4            MUL     AB
+00B2 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 211
+00B3 900000  R     MOV     DPTR,#in
+00B6 E0            MOVX    A,@DPTR
+00B7 24D0          ADD     A,#0D0H
+00B9 FF            MOV     R7,A
+00BA 900000  R     MOV     DPTR,#l_new
+00BD E0            MOVX    A,@DPTR
+00BE 2F            ADD     A,R7
+00BF F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 212
+00C0 120000  R     LCALL   set_llev
+                                           ; SOURCE LINE # 213
+00C3 22            RET     
+                                           ; SOURCE LINE # 214
+00C4         ?C0049:
+00C4 120000  R     LCALL   m_reset
+                                           ; SOURCE LINE # 215
+                                           ; SOURCE LINE # 216
+00C7         ?C0050:
+00C7 22            RET     
+             ; FUNCTION _p_ilevel (END)
+
+             ; FUNCTION proc_run (BEGIN)
+                                           ; SOURCE LINE # 218
+                                           ; SOURCE LINE # 219
+                                           ; SOURCE LINE # 220
+0000 7F80          MOV     R7,#080H
+0002 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 221
+0005 900000  E     MOV     DPTR,#ce_run
+0008 E0            MOVX    A,@DPTR
+0009 706B          JNZ     ?C0051
+                                           ; SOURCE LINE # 222
+                                           ; SOURCE LINE # 223
+000B 900000  E     MOV     DPTR,#a_stat
+000E E0            MOVX    A,@DPTR
+000F 540F          ANL     A,#0FH
+0011 600F          JZ      ?C0052
+                                           ; SOURCE LINE # 224
+                                           ; SOURCE LINE # 225
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 16  
+
+0013 900000  R     MOV     DPTR,#s_nrng
+0016 E0            MOVX    A,@DPTR
+0017 FB            MOV     R3,A
+0018 A3            INC     DPTR
+0019 E0            MOVX    A,@DPTR
+001A FA            MOV     R2,A
+001B A3            INC     DPTR
+001C E0            MOVX    A,@DPTR
+001D F9            MOV     R1,A
+001E 120000  E     LCALL   _printf
+0021 22            RET     
+                                           ; SOURCE LINE # 227
+0022         ?C0052:
+                                           ; SOURCE LINE # 228
+0022 900000  E     MOV     DPTR,#ce_lll
+0025 E0            MOVX    A,@DPTR
+0026 600F          JZ      ?C0054
+                                           ; SOURCE LINE # 229
+                                           ; SOURCE LINE # 230
+0028 900000  R     MOV     DPTR,#s_nrll
+002B E0            MOVX    A,@DPTR
+002C FB            MOV     R3,A
+002D A3            INC     DPTR
+002E E0            MOVX    A,@DPTR
+002F FA            MOV     R2,A
+0030 A3            INC     DPTR
+0031 E0            MOVX    A,@DPTR
+0032 F9            MOV     R1,A
+0033 120000  E     LCALL   _printf
+0036 22            RET     
+                                           ; SOURCE LINE # 232
+0037         ?C0054:
+                                           ; SOURCE LINE # 233
+0037 900000  E     MOV     DPTR,#ce_mode
+003A E0            MOVX    A,@DPTR
+003B B4010F        CJNE    A,#01H,?C0055
+                                           ; SOURCE LINE # 234
+                                           ; SOURCE LINE # 235
+003E 900000  R     MOV     DPTR,#s_nman
+0041 E0            MOVX    A,@DPTR
+0042 FB            MOV     R3,A
+0043 A3            INC     DPTR
+0044 E0            MOVX    A,@DPTR
+0045 FA            MOV     R2,A
+0046 A3            INC     DPTR
+0047 E0            MOVX    A,@DPTR
+0048 F9            MOV     R1,A
+0049 120000  E     LCALL   _printf
+004C 22            RET     
+                                           ; SOURCE LINE # 237
+004D         ?C0055:
+                                           ; SOURCE LINE # 238
+004D 900000  E     MOV     DPTR,#ce_mode
+0050 E0            MOVX    A,@DPTR
+0051 700F          JNZ     ?C0056
+                                           ; SOURCE LINE # 239
+                                           ; SOURCE LINE # 240
+0053 900000  R     MOV     DPTR,#s_noff
+0056 E0            MOVX    A,@DPTR
+0057 FB            MOV     R3,A
+0058 A3            INC     DPTR
+0059 E0            MOVX    A,@DPTR
+005A FA            MOV     R2,A
+005B A3            INC     DPTR
+005C E0            MOVX    A,@DPTR
+005D F9            MOV     R1,A
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 17  
+
+005E 120000  E     LCALL   _printf
+0061 22            RET     
+                                           ; SOURCE LINE # 242
+0062         ?C0056:
+                                           ; SOURCE LINE # 243
+0062 900000  R     MOV     DPTR,#s_rning
+0065 E0            MOVX    A,@DPTR
+0066 FB            MOV     R3,A
+0067 A3            INC     DPTR
+0068 E0            MOVX    A,@DPTR
+0069 FA            MOV     R2,A
+006A A3            INC     DPTR
+006B E0            MOVX    A,@DPTR
+006C F9            MOV     R1,A
+006D 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 244
+0070 7F02          MOV     R7,#02H
+0072 120000  E     LCALL   _ce_sig
+                                           ; SOURCE LINE # 245
+0075 22            RET     
+0076         ?C0051:
+                                           ; SOURCE LINE # 247
+                                           ; SOURCE LINE # 248
+0076 900000  E     MOV     DPTR,#ce_mode
+0079 E0            MOVX    A,@DPTR
+007A B4010F        CJNE    A,#01H,?C0058
+                                           ; SOURCE LINE # 249
+                                           ; SOURCE LINE # 250
+007D 900000  R     MOV     DPTR,#s_nman
+0080 E0            MOVX    A,@DPTR
+0081 FB            MOV     R3,A
+0082 A3            INC     DPTR
+0083 E0            MOVX    A,@DPTR
+0084 FA            MOV     R2,A
+0085 A3            INC     DPTR
+0086 E0            MOVX    A,@DPTR
+0087 F9            MOV     R1,A
+0088 120000  E     LCALL   _printf
+008B 22            RET     
+                                           ; SOURCE LINE # 252
+008C         ?C0058:
+                                           ; SOURCE LINE # 253
+008C 900000  E     MOV     DPTR,#ce_mode
+008F E0            MOVX    A,@DPTR
+0090 700F          JNZ     ?C0059
+                                           ; SOURCE LINE # 254
+                                           ; SOURCE LINE # 255
+0092 900000  R     MOV     DPTR,#s_noff
+0095 E0            MOVX    A,@DPTR
+0096 FB            MOV     R3,A
+0097 A3            INC     DPTR
+0098 E0            MOVX    A,@DPTR
+0099 FA            MOV     R2,A
+009A A3            INC     DPTR
+009B E0            MOVX    A,@DPTR
+009C F9            MOV     R1,A
+009D 120000  E     LCALL   _printf
+00A0 22            RET     
+                                           ; SOURCE LINE # 257
+00A1         ?C0059:
+                                           ; SOURCE LINE # 258
+00A1 900000  R     MOV     DPTR,#s_stpng
+00A4 E0            MOVX    A,@DPTR
+00A5 FB            MOV     R3,A
+00A6 A3            INC     DPTR
+00A7 E0            MOVX    A,@DPTR
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 18  
+
+00A8 FA            MOV     R2,A
+00A9 A3            INC     DPTR
+00AA E0            MOVX    A,@DPTR
+00AB F9            MOV     R1,A
+00AC 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 259
+00AF 7F01          MOV     R7,#01H
+00B1 120000  E     LCALL   _ce_sig
+                                           ; SOURCE LINE # 260
+                                           ; SOURCE LINE # 261
+00B4         ?C0053:
+00B4 22            RET     
+             ; FUNCTION proc_run (END)
+
+             ; FUNCTION _proc_in (BEGIN)
+0000 900000  R     MOV     DPTR,#in
+0003 EF            MOV     A,R7
+0004 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 263
+                                           ; SOURCE LINE # 264
+                                           ; SOURCE LINE # 265
+0005 7F80          MOV     R7,#080H
+0007 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 266
+000A 900000  R     MOV     DPTR,#m_state
+000D E0            MOVX    A,@DPTR
+000E 14            DEC     A
+000F 6044          JZ      ?C0065
+0011 14            DEC     A
+0012 604A          JZ      ?C0066
+0014 14            DEC     A
+0015 600A          JZ      ?C0062
+0017 14            DEC     A
+0018 604D          JZ      ?C0067
+001A 14            DEC     A
+001B 7053          JNZ     ?C0068
+                                           ; SOURCE LINE # 267
+                                           ; SOURCE LINE # 268
+                                           ; SOURCE LINE # 269
+001D         ?C0061:
+001D 120000  R     LCALL   proc_run
+                                           ; SOURCE LINE # 270
+0020 22            RET     
+                                           ; SOURCE LINE # 271
+0021         ?C0062:
+                                           ; SOURCE LINE # 272
+0021 7F80          MOV     R7,#080H
+0023 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 273
+0026 900000  E     MOV     DPTR,#a_stat
+0029 E0            MOVX    A,@DPTR
+002A 30E30F        JNB     ACC.3,?C0063
+                                           ; SOURCE LINE # 274
+002D 900000  R     MOV     DPTR,#s_nrst
+0030 E0            MOVX    A,@DPTR
+0031 FB            MOV     R3,A
+0032 A3            INC     DPTR
+0033 E0            MOVX    A,@DPTR
+0034 FA            MOV     R2,A
+0035 A3            INC     DPTR
+0036 E0            MOVX    A,@DPTR
+0037 F9            MOV     R1,A
+0038 120000  E     LCALL   _printf
+003B 22            RET     
+003C         ?C0063:
+                                           ; SOURCE LINE # 276
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 19  
+
+                                           ; SOURCE LINE # 277
+003C 900000  R     MOV     DPTR,#s_rstng
+003F E0            MOVX    A,@DPTR
+0040 FB            MOV     R3,A
+0041 A3            INC     DPTR
+0042 E0            MOVX    A,@DPTR
+0043 FA            MOV     R2,A
+0044 A3            INC     DPTR
+0045 E0            MOVX    A,@DPTR
+0046 F9            MOV     R1,A
+0047 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 278
+004A E4            CLR     A
+004B 900000  E     MOV     DPTR,#ce_lll
+004E F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 279
+004F 7F03          MOV     R7,#03H
+0051 120000  E     LCALL   _ce_sig
+                                           ; SOURCE LINE # 280
+                                           ; SOURCE LINE # 281
+0054 22            RET     
+                                           ; SOURCE LINE # 282
+0055         ?C0065:
+0055 900000  R     MOV     DPTR,#in
+0058 E0            MOVX    A,@DPTR
+0059 FF            MOV     R7,A
+005A 120000  R     LCALL   _p_itime
+                                           ; SOURCE LINE # 283
+005D 22            RET     
+                                           ; SOURCE LINE # 284
+005E         ?C0066:
+005E 900000  R     MOV     DPTR,#in
+0061 E0            MOVX    A,@DPTR
+0062 FF            MOV     R7,A
+0063 120000  R     LCALL   _p_iflow
+                                           ; SOURCE LINE # 285
+0066 22            RET     
+                                           ; SOURCE LINE # 286
+0067         ?C0067:
+0067 900000  R     MOV     DPTR,#in
+006A E0            MOVX    A,@DPTR
+006B FF            MOV     R7,A
+006C 120000  R     LCALL   _p_ilevel
+                                           ; SOURCE LINE # 287
+006F 22            RET     
+                                           ; SOURCE LINE # 288
+0070         ?C0068:
+0070 E4            CLR     A
+0071 900000  R     MOV     DPTR,#m_state
+0074 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 289
+                                           ; SOURCE LINE # 290
+                                           ; SOURCE LINE # 291
+0075         ?C0069:
+0075 22            RET     
+             ; FUNCTION _proc_in (END)
+
+             ; FUNCTION put_info (BEGIN)
+                                           ; SOURCE LINE # 25
+                                           ; SOURCE LINE # 26
+                                           ; SOURCE LINE # 27
+0000 7FC0          MOV     R7,#0C0H
+0002 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 28
+0005 900000  R     MOV     DPTR,#i_state
+0008 E0            MOVX    A,@DPTR
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 20  
+
+0009 14            DEC     A
+000A 6023          JZ      ?C0073
+000C 14            DEC     A
+000D 6034          JZ      ?C0074
+000F 14            DEC     A
+0010 6040          JZ      ?C0075
+0012 14            DEC     A
+0013 604C          JZ      ?C0076
+0015 14            DEC     A
+0016 6008          JZ      ?C0072
+0018 8000          SJMP    ?C0071
+                                           ; SOURCE LINE # 29
+                                           ; SOURCE LINE # 30
+001A         ?C0071:
+001A 900000  R     MOV     DPTR,#i_state
+001D 7405          MOV     A,#05H
+001F F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 31
+0020         ?C0072:
+0020 900000  R     MOV     DPTR,#s_stat
+0023 E0            MOVX    A,@DPTR
+0024 FB            MOV     R3,A
+0025 A3            INC     DPTR
+0026 E0            MOVX    A,@DPTR
+0027 FA            MOV     R2,A
+0028 A3            INC     DPTR
+0029 E0            MOVX    A,@DPTR
+002A F9            MOV     R1,A
+002B 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 32
+002E 22            RET     
+                                           ; SOURCE LINE # 33
+002F         ?C0073:
+002F 900000  R     MOV     DPTR,#s_flow
+0032 E0            MOVX    A,@DPTR
+0033 FB            MOV     R3,A
+0034 A3            INC     DPTR
+0035 E0            MOVX    A,@DPTR
+0036 FA            MOV     R2,A
+0037 A3            INC     DPTR
+0038 E0            MOVX    A,@DPTR
+0039 F9            MOV     R1,A
+003A 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 34
+003D E4            CLR     A
+003E 900000  R     MOV     DPTR,#old_flow
+0041 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 35
+0042 22            RET     
+                                           ; SOURCE LINE # 36
+0043         ?C0074:
+0043 900000  R     MOV     DPTR,#s_pres
+0046 E0            MOVX    A,@DPTR
+0047 FB            MOV     R3,A
+0048 A3            INC     DPTR
+0049 E0            MOVX    A,@DPTR
+004A FA            MOV     R2,A
+004B A3            INC     DPTR
+004C E0            MOVX    A,@DPTR
+004D F9            MOV     R1,A
+004E 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 37
+0051 22            RET     
+                                           ; SOURCE LINE # 38
+0052         ?C0075:
+0052 900000  R     MOV     DPTR,#s_wl
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 21  
+
+0055 E0            MOVX    A,@DPTR
+0056 FB            MOV     R3,A
+0057 A3            INC     DPTR
+0058 E0            MOVX    A,@DPTR
+0059 FA            MOV     R2,A
+005A A3            INC     DPTR
+005B E0            MOVX    A,@DPTR
+005C F9            MOV     R1,A
+005D 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 39
+0060 22            RET     
+                                           ; SOURCE LINE # 40
+0061         ?C0076:
+0061 900000  R     MOV     DPTR,#s_time
+0064 E0            MOVX    A,@DPTR
+0065 FB            MOV     R3,A
+0066 A3            INC     DPTR
+0067 E0            MOVX    A,@DPTR
+0068 FA            MOV     R2,A
+0069 A3            INC     DPTR
+006A E0            MOVX    A,@DPTR
+006B F9            MOV     R1,A
+006C 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 41
+                                           ; SOURCE LINE # 42
+                                           ; SOURCE LINE # 43
+006F         ?C0077:
+006F 22            RET     
+             ; FUNCTION put_info (END)
+
+             ; FUNCTION put_flag (BEGIN)
+                                           ; SOURCE LINE # 45
+                                           ; SOURCE LINE # 46
+                                           ; SOURCE LINE # 47
+0000 300009  R     JNB     on,?C0078
+                                           ; SOURCE LINE # 48
+0003 900000  R     MOV     DPTR,#out
+0006 E0            MOVX    A,@DPTR
+0007 FF            MOV     R7,A
+0008 120000  R     LCALL   _putchar
+000B 22            RET     
+000C         ?C0078:
+                                           ; SOURCE LINE # 49
+000C 7F20          MOV     R7,#020H
+000E 120000  R     LCALL   _putchar
+                                           ; SOURCE LINE # 50
+0011         ?C0080:
+0011 22            RET     
+             ; FUNCTION put_flag (END)
+
+             ; FUNCTION put_status (BEGIN)
+                                           ; SOURCE LINE # 52
+                                           ; SOURCE LINE # 53
+                                           ; SOURCE LINE # 54
+0000 7FC8          MOV     R7,#0C8H
+0002 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 55
+0005 900000  E     MOV     DPTR,#ce_mode
+0008 E0            MOVX    A,@DPTR
+0009 B40107        CJNE    A,#01H,?C0081
+                                           ; SOURCE LINE # 56
+000C 7F4D          MOV     R7,#04DH
+000E 120000  R     LCALL   _putchar
+0011 8012          SJMP    ?C0082
+0013         ?C0081:
+                                           ; SOURCE LINE # 57
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 22  
+
+0013 900000  E     MOV     DPTR,#ce_mode
+0016 E0            MOVX    A,@DPTR
+0017 7007          JNZ     ?C0083
+                                           ; SOURCE LINE # 58
+0019 7F4F          MOV     R7,#04FH
+001B 120000  R     LCALL   _putchar
+001E 8005          SJMP    ?C0082
+0020         ?C0083:
+                                           ; SOURCE LINE # 59
+0020 7F41          MOV     R7,#041H
+0022 120000  R     LCALL   _putchar
+0025         ?C0082:
+                                           ; SOURCE LINE # 60
+0025 900000  E     MOV     DPTR,#ce_run
+0028 E0            MOVX    A,@DPTR
+0029 24FF          ADD     A,#0FFH
+002B 9200    R     MOV     ?put_flag?BIT,C
+002D 900000  R     MOV     DPTR,#?put_flag?BYTE
+0030 7452          MOV     A,#052H
+0032 F0            MOVX    @DPTR,A
+0033 120000  R     LCALL   put_flag
+                                           ; SOURCE LINE # 61
+0036 900000  E     MOV     DPTR,#a_stat
+0039 E0            MOVX    A,@DPTR
+003A A2E2          MOV     C,ACC.2
+003C 9200    R     MOV     ?put_flag?BIT,C
+003E 900000  R     MOV     DPTR,#?put_flag?BYTE
+0041 7450          MOV     A,#050H
+0043 F0            MOVX    @DPTR,A
+0044 120000  R     LCALL   put_flag
+                                           ; SOURCE LINE # 62
+0047 900000  E     MOV     DPTR,#a_stat
+004A E0            MOVX    A,@DPTR
+004B A2E4          MOV     C,ACC.4
+004D 9200    R     MOV     ?put_flag?BIT,C
+004F 900000  R     MOV     DPTR,#?put_flag?BYTE
+0052 7457          MOV     A,#057H
+0054 F0            MOVX    @DPTR,A
+0055 120000  R     LCALL   put_flag
+                                           ; SOURCE LINE # 63
+0058 900000  E     MOV     DPTR,#ce_lll
+005B E0            MOVX    A,@DPTR
+005C 24FF          ADD     A,#0FFH
+005E 9200    R     MOV     ?put_flag?BIT,C
+0060 900000  R     MOV     DPTR,#?put_flag?BYTE
+0063 744C          MOV     A,#04CH
+0065 F0            MOVX    @DPTR,A
+0066 120000  R     LCALL   put_flag
+                                           ; SOURCE LINE # 64
+0069 900000  E     MOV     DPTR,#a_stat
+006C E0            MOVX    A,@DPTR
+006D 13            RRC     A
+006E 9200    R     MOV     ?put_flag?BIT,C
+0070 900000  R     MOV     DPTR,#?put_flag?BYTE
+0073 7446          MOV     A,#046H
+0075 F0            MOVX    @DPTR,A
+0076 120000  R     LCALL   put_flag
+                                           ; SOURCE LINE # 65
+0079 900000  E     MOV     DPTR,#a_stat
+007C E0            MOVX    A,@DPTR
+007D A2E1          MOV     C,ACC.1
+007F 9200    R     MOV     ?put_flag?BIT,C
+0081 900000  R     MOV     DPTR,#?put_flag?BYTE
+0084 744F          MOV     A,#04FH
+0086 F0            MOVX    @DPTR,A
+0087 120000  R     LCALL   put_flag
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 23  
+
+                                           ; SOURCE LINE # 66
+008A 900000  E     MOV     DPTR,#v_stat
+008D E0            MOVX    A,@DPTR
+008E 14            DEC     A
+008F 6016          JZ      ?C0087
+0091 14            DEC     A
+0092 6019          JZ      ?C0088
+0094 14            DEC     A
+0095 601C          JZ      ?C0089
+0097 14            DEC     A
+0098 601F          JZ      ?C0090
+009A 14            DEC     A
+009B 6022          JZ      ?C0091
+009D 2405          ADD     A,#05H
+009F 7024          JNZ     ?C0092
+                                           ; SOURCE LINE # 67
+                                           ; SOURCE LINE # 68
+00A1         ?C0086:
+00A1 7F49          MOV     R7,#049H
+00A3 120000  R     LCALL   _putchar
+                                           ; SOURCE LINE # 69
+00A6 22            RET     
+                                           ; SOURCE LINE # 70
+00A7         ?C0087:
+00A7 7F4F          MOV     R7,#04FH
+00A9 120000  R     LCALL   _putchar
+                                           ; SOURCE LINE # 71
+00AC 22            RET     
+                                           ; SOURCE LINE # 72
+00AD         ?C0088:
+00AD 7F43          MOV     R7,#043H
+00AF 120000  R     LCALL   _putchar
+                                           ; SOURCE LINE # 73
+00B2 22            RET     
+                                           ; SOURCE LINE # 74
+00B3         ?C0089:
+00B3 7F6F          MOV     R7,#06FH
+00B5 120000  R     LCALL   _putchar
+                                           ; SOURCE LINE # 75
+00B8 22            RET     
+                                           ; SOURCE LINE # 76
+00B9         ?C0090:
+00B9 7F63          MOV     R7,#063H
+00BB 120000  R     LCALL   _putchar
+                                           ; SOURCE LINE # 77
+00BE 22            RET     
+                                           ; SOURCE LINE # 78
+00BF         ?C0091:
+00BF 7F53          MOV     R7,#053H
+00C1 120000  R     LCALL   _putchar
+                                           ; SOURCE LINE # 79
+00C4 22            RET     
+                                           ; SOURCE LINE # 80
+00C5         ?C0092:
+00C5 7F20          MOV     R7,#020H
+00C7 120000  R     LCALL   _putchar
+                                           ; SOURCE LINE # 81
+                                           ; SOURCE LINE # 82
+                                           ; SOURCE LINE # 83
+00CA         ?C0093:
+00CA 22            RET     
+             ; FUNCTION put_status (END)
+
+             ; FUNCTION ui_update (BEGIN)
+                                           ; SOURCE LINE # 85
+                                           ; SOURCE LINE # 86
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 24  
+
+                                           ; SOURCE LINE # 87
+0000 C200    E     CLR     ui_flag
+                                           ; SOURCE LINE # 90
+0002 900000  R     MOV     DPTR,#ui_state
+0005 E0            MOVX    A,@DPTR
+0006 6402          XRL     A,#02H
+0008 6002          JZ      $ + 4H
+000A 0100    R     AJMP    ?C0095
+000C         ?C0094:
+                                           ; SOURCE LINE # 92
+000C 900000  R     MOV     DPTR,#cursor
+000F E0            MOVX    A,@DPTR
+0010 6005          JZ      ?C0096
+                                           ; SOURCE LINE # 93
+0012 7F0C          MOV     R7,#0CH
+0014 120000  E     LCALL   _set_rlcd
+0017         ?C0096:
+                                           ; SOURCE LINE # 94
+0017 900000  R     MOV     DPTR,#i_state
+001A E0            MOVX    A,@DPTR
+001B 14            DEC     A
+001C 6017          JZ      ?C0099
+001E 14            DEC     A
+001F 6060          JZ      ?C0102
+0021 14            DEC     A
+0022 7002          JNZ     $ + 4H
+0024 0100    R     AJMP    ?C0105
+0026 14            DEC     A
+0027 7002          JNZ     $ + 4H
+0029 0100    R     AJMP    ?C0108
+002B 14            DEC     A
+002C 6002          JZ      $ + 4H
+002E 0100    R     AJMP    ?C0109
+                                           ; SOURCE LINE # 95
+                                           ; SOURCE LINE # 96
+0030         ?C0098:
+                                           ; SOURCE LINE # 97
+0030 120000  R     LCALL   put_status
+                                           ; SOURCE LINE # 98
+0033 0100    R     AJMP    ?C0097
+                                           ; SOURCE LINE # 99
+0035         ?C0099:
+                                           ; SOURCE LINE # 100
+0035 900000  R     MOV     DPTR,#old_flow
+0038 E0            MOVX    A,@DPTR
+0039 FF            MOV     R7,A
+003A 900000  E     MOV     DPTR,#flow
+003D E0            MOVX    A,@DPTR
+003E FE            MOV     R6,A
+003F 6F            XRL     A,R7
+0040 6023          JZ      ?C0100
+                                           ; SOURCE LINE # 101
+                                           ; SOURCE LINE # 102
+0042 900000  R     MOV     DPTR,#old_flow
+0045 EE            MOV     A,R6
+0046 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 103
+0047 7FC0          MOV     R7,#0C0H
+0049 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 104
+004C 7B05          MOV     R3,#05H
+004E 7A00    R     MOV     R2,#HIGH ?SC_533
+0050 7900    R     MOV     R1,#LOW ?SC_533
+0052 900000  E     MOV     DPTR,#flow
+0055 E0            MOVX    A,@DPTR
+0056 900000  E     MOV     DPTR,#?_printf?BYTE+03H
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 25  
+
+0059 F0            MOVX    @DPTR,A
+005A 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 105
+005D 900000  E     MOV     DPTR,#ce_cos
+0060 7401          MOV     A,#01H
+0062 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 106
+0063 0100    R     AJMP    ?C0097
+0065         ?C0100:
+                                           ; SOURCE LINE # 108
+                                           ; SOURCE LINE # 109
+0065 7FC7          MOV     R7,#0C7H
+0067 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 110
+006A 7B05          MOV     R3,#05H
+006C 7A00    R     MOV     R2,#HIGH ?SC_543
+006E 7900    R     MOV     R1,#LOW ?SC_543
+0070 900000  E     MOV     DPTR,#f_tot
+0073 120000  E     LCALL   ?C_LLDXDATA
+0076 900000  E     MOV     DPTR,#?_printf?BYTE+03H
+0079 120000  E     LCALL   ?C_LSTXDATA
+007C 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 111
+                                           ; SOURCE LINE # 112
+007F 0100    R     AJMP    ?C0097
+                                           ; SOURCE LINE # 113
+0081         ?C0102:
+                                           ; SOURCE LINE # 114
+0081 120000  E     LCALL   calc_press
+                                           ; SOURCE LINE # 115
+0084 7FCA          MOV     R7,#0CAH
+0086 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 116
+0089 900000  E     MOV     DPTR,#pressure
+008C E0            MOVX    A,@DPTR
+008D 700B          JNZ     ?C0103
+                                           ; SOURCE LINE # 117
+008F 7B05          MOV     R3,#05H
+0091 7A00    R     MOV     R2,#HIGH ?SC_551
+0093 7900    R     MOV     R1,#LOW ?SC_551
+0095 120000  E     LCALL   _printf
+0098 8079          SJMP    ?C0097
+009A         ?C0103:
+                                           ; SOURCE LINE # 118
+009A 900000  E     MOV     DPTR,#pressure
+009D E0            MOVX    A,@DPTR
+009E FC            MOV     R4,A
+009F E4            CLR     A
+00A0 120000  E     LCALL   ?C_FCASTC
+00A3 120000  E     LCALL   ?C_LPUSH
+00A6 7F41          MOV     R7,#041H
+00A8 7E20          MOV     R6,#020H
+00AA 7D00          MOV     R5,#00H
+00AC 7C00          MOV     R4,#00H
+00AE 120000  E     LCALL   ?C_FPDIV
+00B1 900000  E     MOV     DPTR,#?_printf?BYTE+03H
+00B4 120000  E     LCALL   ?C_LSTXDATA
+00B7 7B05          MOV     R3,#05H
+00B9 7A00    R     MOV     R2,#HIGH ?SC_558
+00BB 7900    R     MOV     R1,#LOW ?SC_558
+00BD 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 119
+00C0 8051          SJMP    ?C0097
+                                           ; SOURCE LINE # 120
+00C2         ?C0105:
+                                           ; SOURCE LINE # 121
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 26  
+
+00C2 120000  E     LCALL   calc_level
+                                           ; SOURCE LINE # 122
+00C5 7FCD          MOV     R7,#0CDH
+00C7 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 123
+00CA 900000  E     MOV     DPTR,#water_level
+00CD E0            MOVX    A,@DPTR
+00CE 700B          JNZ     ?C0106
+                                           ; SOURCE LINE # 124
+00D0 7B05          MOV     R3,#05H
+00D2 7A00    R     MOV     R2,#HIGH ?SC_568
+00D4 7900    R     MOV     R1,#LOW ?SC_568
+00D6 120000  E     LCALL   _printf
+00D9 8038          SJMP    ?C0097
+00DB         ?C0106:
+                                           ; SOURCE LINE # 125
+00DB 900000  E     MOV     DPTR,#water_level
+00DE E0            MOVX    A,@DPTR
+00DF FC            MOV     R4,A
+00E0 E4            CLR     A
+00E1 120000  E     LCALL   ?C_FCASTC
+00E4 120000  E     LCALL   ?C_LPUSH
+00E7 7F41          MOV     R7,#041H
+00E9 7E20          MOV     R6,#020H
+00EB 7D00          MOV     R5,#00H
+00ED 7C00          MOV     R4,#00H
+00EF 120000  E     LCALL   ?C_FPDIV
+00F2 900000  E     MOV     DPTR,#?_printf?BYTE+03H
+00F5 120000  E     LCALL   ?C_LSTXDATA
+00F8 7B05          MOV     R3,#05H
+00FA 7A00    R     MOV     R2,#HIGH ?SC_573
+00FC 7900    R     MOV     R1,#LOW ?SC_573
+00FE 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 126
+0101 8010          SJMP    ?C0097
+                                           ; SOURCE LINE # 127
+0103         ?C0108:
+                                           ; SOURCE LINE # 128
+0103 7FC7          MOV     R7,#0C7H
+0105 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 129
+0108 120000  E     LCALL   show_time
+                                           ; SOURCE LINE # 130
+010B 8006          SJMP    ?C0097
+                                           ; SOURCE LINE # 131
+010D         ?C0109:
+010D 900000  R     MOV     DPTR,#i_state
+0110 7405          MOV     A,#05H
+0112 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 132
+0113         ?C0097:
+                                           ; SOURCE LINE # 133
+0113 900000  R     MOV     DPTR,#cursor
+0116 E0            MOVX    A,@DPTR
+0117 FF            MOV     R7,A
+0118 600B          JZ      ?C0095
+                                           ; SOURCE LINE # 134
+                                           ; SOURCE LINE # 135
+011A 2480          ADD     A,#080H
+011C FF            MOV     R7,A
+011D 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 136
+0120 7F0F          MOV     R7,#0FH
+0122 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 137
+                                           ; SOURCE LINE # 138
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 27  
+
+0125         ?C0095:
+0125 22            RET     
+             ; FUNCTION ui_update (END)
+
+             ; FUNCTION _db_store (BEGIN)
+0000 900000  R     MOV     DPTR,#idx
+0003 EE            MOV     A,R6
+0004 F0            MOVX    @DPTR,A
+0005 A3            INC     DPTR
+0006 EF            MOV     A,R7
+0007 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 30
+                                           ; SOURCE LINE # 31
+                                           ; SOURCE LINE # 33
+;---- Variable 'i' assigned to Register 'R7' ----
+0008 E4            CLR     A
+0009 FF            MOV     R7,A
+000A         ?C0111:
+000A EF            MOV     A,R7
+000B C3            CLR     C
+000C 9408          SUBB    A,#08H
+000E 5034          JNC     ?C0112
+                                           ; SOURCE LINE # 34
+0010 7400    E     MOV     A,#LOW adc
+0012 2F            ADD     A,R7
+0013 F582          MOV     DPL,A
+0015 E4            CLR     A
+0016 3400    E     ADDC    A,#HIGH adc
+0018 F583          MOV     DPH,A
+001A E0            MOVX    A,@DPTR
+001B FE            MOV     R6,A
+001C 900000  R     MOV     DPTR,#idx
+001F E0            MOVX    A,@DPTR
+0020 FC            MOV     R4,A
+0021 A3            INC     DPTR
+0022 E0            MOVX    A,@DPTR
+0023 900000  R     MOV     DPTR,#DB
+0026 75F00F        MOV     B,#0FH
+0029 120000  E     LCALL   ?C_OFFXADD
+002C EC            MOV     A,R4
+002D 75F00F        MOV     B,#0FH
+0030 A4            MUL     AB
+0031 2583          ADD     A,DPH
+0033 F583          MOV     DPH,A
+0035 E582          MOV     A,DPL
+0037 2F            ADD     A,R7
+0038 F582          MOV     DPL,A
+003A E4            CLR     A
+003B 3583          ADDC    A,DPH
+003D F583          MOV     DPH,A
+003F EE            MOV     A,R6
+0040 F0            MOVX    @DPTR,A
+0041 0F            INC     R7
+0042 80C6          SJMP    ?C0111
+0044         ?C0112:
+                                           ; SOURCE LINE # 35
+0044 900000  E     MOV     DPTR,#ce_din
+0047 E0            MOVX    A,@DPTR
+0048 FF            MOV     R7,A
+0049 900000  R     MOV     DPTR,#idx
+004C E0            MOVX    A,@DPTR
+004D FA            MOV     R2,A
+004E A3            INC     DPTR
+004F E0            MOVX    A,@DPTR
+0050 FB            MOV     R3,A
+0051 900000  R     MOV     DPTR,#DB+08H
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 28  
+
+0054 75F00F        MOV     B,#0FH
+0057 120000  E     LCALL   ?C_OFFXADD
+005A EA            MOV     A,R2
+005B 75F00F        MOV     B,#0FH
+005E A4            MUL     AB
+005F 2583          ADD     A,DPH
+0061 F583          MOV     DPH,A
+0063 EF            MOV     A,R7
+0064 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 36
+0065 900000  E     MOV     DPTR,#ce_dout
+0068 E0            MOVX    A,@DPTR
+0069 FF            MOV     R7,A
+006A 900000  R     MOV     DPTR,#DB+09H
+006D 75F00F        MOV     B,#0FH
+0070 EB            MOV     A,R3
+0071 120000  E     LCALL   ?C_OFFXADD
+0074 EA            MOV     A,R2
+0075 75F00F        MOV     B,#0FH
+0078 A4            MUL     AB
+0079 2583          ADD     A,DPH
+007B F583          MOV     DPH,A
+007D EF            MOV     A,R7
+007E F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 37
+007F 900000  E     MOV     DPTR,#flow
+0082 E0            MOVX    A,@DPTR
+0083 FF            MOV     R7,A
+0084 900000  R     MOV     DPTR,#DB+0AH
+0087 75F00F        MOV     B,#0FH
+008A EB            MOV     A,R3
+008B 120000  E     LCALL   ?C_OFFXADD
+008E EA            MOV     A,R2
+008F 75F00F        MOV     B,#0FH
+0092 A4            MUL     AB
+0093 2583          ADD     A,DPH
+0095 F583          MOV     DPH,A
+0097 EF            MOV     A,R7
+0098 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 38
+0099 900000  E     MOV     DPTR,#f_tot
+009C 120000  E     LCALL   ?C_LLDXDATA
+009F 900000  R     MOV     DPTR,#DB+0BH
+00A2 75F00F        MOV     B,#0FH
+00A5 EB            MOV     A,R3
+00A6 120000  E     LCALL   ?C_OFFXADD
+00A9 EA            MOV     A,R2
+00AA 75F00F        MOV     B,#0FH
+00AD A4            MUL     AB
+00AE 2583          ADD     A,DPH
+00B0 F583          MOV     DPH,A
+00B2 120000  E     LCALL   ?C_LSTXDATA
+                                           ; SOURCE LINE # 39
+00B5 22            RET     
+             ; FUNCTION _db_store (END)
+
+             ; FUNCTION _io_print (BEGIN)
+;---- Variable 'out' assigned to Register 'R7' ----
+                                           ; SOURCE LINE # 41
+                                           ; SOURCE LINE # 42
+                                           ; SOURCE LINE # 44
+0000 900000  R     MOV     DPTR,#t
+0003 EF            MOV     A,R7
+0004 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 45
+0005 E4            CLR     A
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 29  
+
+0006 900000  R     MOV     DPTR,#i
+0009 F0            MOVX    @DPTR,A
+000A         ?C0115:
+000A 900000  R     MOV     DPTR,#i
+000D E0            MOVX    A,@DPTR
+000E C3            CLR     C
+000F 9408          SUBB    A,#08H
+0011 5021          JNC     ?C0116
+                                           ; SOURCE LINE # 46
+                                           ; SOURCE LINE # 47
+0013 A3            INC     DPTR
+0014 E0            MOVX    A,@DPTR
+0015 30E707        JNB     ACC.7,?C0118
+                                           ; SOURCE LINE # 48
+0018 7F31          MOV     R7,#031H
+001A 120000  R     LCALL   _putchar
+001D 8005          SJMP    ?C0119
+001F         ?C0118:
+                                           ; SOURCE LINE # 49
+001F 7F30          MOV     R7,#030H
+0021 120000  R     LCALL   _putchar
+0024         ?C0119:
+                                           ; SOURCE LINE # 50
+0024 900000  R     MOV     DPTR,#t
+0027 E0            MOVX    A,@DPTR
+0028 FF            MOV     R7,A
+0029 25E0          ADD     A,ACC
+002B F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 51
+002C 900000  R     MOV     DPTR,#i
+002F E0            MOVX    A,@DPTR
+0030 04            INC     A
+0031 F0            MOVX    @DPTR,A
+0032 80D6          SJMP    ?C0115
+0034         ?C0116:
+                                           ; SOURCE LINE # 52
+0034 7F20          MOV     R7,#020H
+0036 120000  R     LCALL   _putchar
+                                           ; SOURCE LINE # 53
+0039 22            RET     
+             ; FUNCTION _io_print (END)
+
+             ; FUNCTION _db_print (BEGIN)
+0000 900000  R     MOV     DPTR,#idx
+0003 EE            MOV     A,R6
+0004 F0            MOVX    @DPTR,A
+0005 A3            INC     DPTR
+0006 EF            MOV     A,R7
+0007 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 55
+                                           ; SOURCE LINE # 56
+                                           ; SOURCE LINE # 58
+0008 E4            CLR     A
+0009 A3            INC     DPTR
+000A F0            MOVX    @DPTR,A
+000B         ?C0121:
+000B 900000  R     MOV     DPTR,#i
+000E E0            MOVX    A,@DPTR
+000F FF            MOV     R7,A
+0010 C3            CLR     C
+0011 9408          SUBB    A,#08H
+0013 5039          JNC     ?C0122
+                                           ; SOURCE LINE # 59
+0015 7B05          MOV     R3,#05H
+0017 7A00    R     MOV     R2,#HIGH ?SC_581
+0019 7900    R     MOV     R1,#LOW ?SC_581
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 30  
+
+001B 900000  R     MOV     DPTR,#idx
+001E E0            MOVX    A,@DPTR
+001F FC            MOV     R4,A
+0020 A3            INC     DPTR
+0021 E0            MOVX    A,@DPTR
+0022 900000  R     MOV     DPTR,#DB
+0025 75F00F        MOV     B,#0FH
+0028 120000  E     LCALL   ?C_OFFXADD
+002B EC            MOV     A,R4
+002C 75F00F        MOV     B,#0FH
+002F A4            MUL     AB
+0030 2583          ADD     A,DPH
+0032 F583          MOV     DPH,A
+0034 E582          MOV     A,DPL
+0036 2F            ADD     A,R7
+0037 F582          MOV     DPL,A
+0039 E4            CLR     A
+003A 3583          ADDC    A,DPH
+003C F583          MOV     DPH,A
+003E E0            MOVX    A,@DPTR
+003F 900000  E     MOV     DPTR,#?_printf?BYTE+03H
+0042 F0            MOVX    @DPTR,A
+0043 120000  E     LCALL   _printf
+0046 900000  R     MOV     DPTR,#i
+0049 E0            MOVX    A,@DPTR
+004A 04            INC     A
+004B F0            MOVX    @DPTR,A
+004C 80BD          SJMP    ?C0121
+004E         ?C0122:
+                                           ; SOURCE LINE # 61
+004E 900000  E     MOV     DPTR,#a_stat
+0051 E0            MOVX    A,@DPTR
+0052 FF            MOV     R7,A
+0053 120000  R     LCALL   _io_print
+                                           ; SOURCE LINE # 62
+0056 900000  R     MOV     DPTR,#idx
+0059 E0            MOVX    A,@DPTR
+005A FE            MOV     R6,A
+005B A3            INC     DPTR
+005C E0            MOVX    A,@DPTR
+005D 900000  R     MOV     DPTR,#DB+08H
+0060 75F00F        MOV     B,#0FH
+0063 120000  E     LCALL   ?C_OFFXADD
+0066 EE            MOV     A,R6
+0067 75F00F        MOV     B,#0FH
+006A A4            MUL     AB
+006B 2583          ADD     A,DPH
+006D F583          MOV     DPH,A
+006F E0            MOVX    A,@DPTR
+0070 FF            MOV     R7,A
+0071 120000  R     LCALL   _io_print
+                                           ; SOURCE LINE # 63
+0074 900000  R     MOV     DPTR,#idx
+0077 E0            MOVX    A,@DPTR
+0078 FE            MOV     R6,A
+0079 A3            INC     DPTR
+007A E0            MOVX    A,@DPTR
+007B 900000  R     MOV     DPTR,#DB+09H
+007E 75F00F        MOV     B,#0FH
+0081 120000  E     LCALL   ?C_OFFXADD
+0084 EE            MOV     A,R6
+0085 75F00F        MOV     B,#0FH
+0088 A4            MUL     AB
+0089 2583          ADD     A,DPH
+008B F583          MOV     DPH,A
+008D E0            MOVX    A,@DPTR
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 31  
+
+008E FF            MOV     R7,A
+008F 120000  R     LCALL   _io_print
+                                           ; SOURCE LINE # 64
+0092 7B05          MOV     R3,#05H
+0094 7A00    R     MOV     R2,#HIGH ?SC_588
+0096 7900    R     MOV     R1,#LOW ?SC_588
+0098 900000  R     MOV     DPTR,#idx
+009B E0            MOVX    A,@DPTR
+009C FE            MOV     R6,A
+009D A3            INC     DPTR
+009E E0            MOVX    A,@DPTR
+009F FF            MOV     R7,A
+00A0 900000  R     MOV     DPTR,#DB+0AH
+00A3 75F00F        MOV     B,#0FH
+00A6 120000  E     LCALL   ?C_OFFXADD
+00A9 EE            MOV     A,R6
+00AA 75F00F        MOV     B,#0FH
+00AD A4            MUL     AB
+00AE 2583          ADD     A,DPH
+00B0 F583          MOV     DPH,A
+00B2 E0            MOVX    A,@DPTR
+00B3 900000  E     MOV     DPTR,#?_printf?BYTE+03H
+00B6 F0            MOVX    @DPTR,A
+00B7 900000  R     MOV     DPTR,#DB+0BH
+00BA 75F00F        MOV     B,#0FH
+00BD EF            MOV     A,R7
+00BE 120000  E     LCALL   ?C_OFFXADD
+00C1 EE            MOV     A,R6
+00C2 75F00F        MOV     B,#0FH
+00C5 A4            MUL     AB
+00C6 2583          ADD     A,DPH
+00C8 F583          MOV     DPH,A
+00CA 120000  E     LCALL   ?C_LLDXDATA
+00CD 900000  E     MOV     DPTR,#?_printf?BYTE+04H
+00D0 120000  E     LCALL   ?C_LSTXDATA
+00D3 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 66
+00D6 7F0A          MOV     R7,#0AH
+00D8 120000  E     LCALL   _sputchar
+                                           ; SOURCE LINE # 67
+00DB 22            RET     
+             ; FUNCTION _db_print (END)
+
+             ; FUNCTION db_log (BEGIN)
+                                           ; SOURCE LINE # 69
+                                           ; SOURCE LINE # 70
+                                           ; SOURCE LINE # 71
+0000 900000  R     MOV     DPTR,#db_idx
+0003 E0            MOVX    A,@DPTR
+0004 FE            MOV     R6,A
+0005 A3            INC     DPTR
+0006 E0            MOVX    A,@DPTR
+0007 FF            MOV     R7,A
+0008 120000  R     LCALL   _db_store
+                                           ; SOURCE LINE # 72
+000B 900000  R     MOV     DPTR,#db_idx
+000E E4            CLR     A
+000F 75F001        MOV     B,#01H
+0012 120000  E     LCALL   ?C_IILDX
+0015 FE            MOV     R6,A
+0016 E5F0          MOV     A,B
+0018 64D0          XRL     A,#0D0H
+001A 7003          JNZ     ?C0191
+001C EE            MOV     A,R6
+001D 6407          XRL     A,#07H
+001F         ?C0191:
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 32  
+
+001F 7011          JNZ     ?C0127
+                                           ; SOURCE LINE # 73
+                                           ; SOURCE LINE # 74
+0021 900000  R     MOV     DPTR,#db_idx
+0024 F0            MOVX    @DPTR,A
+0025 A3            INC     DPTR
+0026 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 75
+0027 900000  R     MOV     DPTR,#db_page
+002A E0            MOVX    A,@DPTR
+002B 04            INC     A
+002C F0            MOVX    @DPTR,A
+002D B40302        CJNE    A,#03H,?C0127
+                                           ; SOURCE LINE # 76
+0030 E4            CLR     A
+0031 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 77
+                                           ; SOURCE LINE # 78
+0032         ?C0127:
+0032 22            RET     
+             ; FUNCTION db_log (END)
+
+             ; FUNCTION ui_slog (BEGIN)
+                                           ; SOURCE LINE # 43
+                                           ; SOURCE LINE # 44
+                                           ; SOURCE LINE # 45
+0000 900000  R     MOV     DPTR,#out_stream
+0003 7402          MOV     A,#02H
+0005 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 46
+0006 120000  R     LCALL   db_log
+                                           ; SOURCE LINE # 47
+0009 900000  R     MOV     DPTR,#db_idx+01H
+000C E0            MOVX    A,@DPTR
+000D 24FF          ADD     A,#0FFH
+000F FF            MOV     R7,A
+0010 900000  R     MOV     DPTR,#db_idx
+0013 E0            MOVX    A,@DPTR
+0014 34FF          ADDC    A,#0FFH
+0016 FE            MOV     R6,A
+0017 120000  R     LCALL   _db_print
+                                           ; SOURCE LINE # 48
+001A 900000  R     MOV     DPTR,#out_stream
+001D 7401          MOV     A,#01H
+001F F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 49
+0020 22            RET     
+             ; FUNCTION ui_slog (END)
+
+             ; FUNCTION _paint (BEGIN)
+;---- Variable 'l1' assigned to Register 'R1/R2/R3' ----
+                                           ; SOURCE LINE # 51
+                                           ; SOURCE LINE # 52
+                                           ; SOURCE LINE # 53
+0000 A200    R     MOV     C,lcd_ack
+0002 8200    R     ANL     C,dirty
+0004 5022          JNC     ?C0130
+                                           ; SOURCE LINE # 54
+                                           ; SOURCE LINE # 55
+0006 C002          PUSH    AR2
+0008 C001          PUSH    AR1
+000A 900000  R     MOV     DPTR,#l2
+000D E0            MOVX    A,@DPTR
+000E F9            MOV     R1,A
+000F A3            INC     DPTR
+0010 E0            MOVX    A,@DPTR
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 33  
+
+0011 FA            MOV     R2,A
+0012 A3            INC     DPTR
+0013 E0            MOVX    A,@DPTR
+0014 900000  E     MOV     DPTR,#?_paint_rlcd?BYTE+03H
+0017 C9            XCH     A,R1
+0018 F0            MOVX    @DPTR,A
+0019 A3            INC     DPTR
+001A EA            MOV     A,R2
+001B F0            MOVX    @DPTR,A
+001C A3            INC     DPTR
+001D E9            MOV     A,R1
+001E F0            MOVX    @DPTR,A
+001F D001          POP     AR1
+0021 D002          POP     AR2
+0023 120000  E     LCALL   _paint_rlcd
+                                           ; SOURCE LINE # 56
+0026 C200    R     CLR     dirty
+                                           ; SOURCE LINE # 57
+                                           ; SOURCE LINE # 58
+0028         ?C0130:
+0028 22            RET     
+             ; FUNCTION _paint (END)
+
+             ; FUNCTION init_i2clcd (BEGIN)
+                                           ; SOURCE LINE # 60
+                                           ; SOURCE LINE # 61
+                                           ; SOURCE LINE # 62
+;---- Variable 'wait' assigned to Register 'R6/R7' ----
+0000 7F00          MOV     R7,#00H
+0002 7E01          MOV     R6,#01H
+0004         ?C0131:
+                                           ; SOURCE LINE # 63
+0004 EF            MOV     A,R7
+0005 1F            DEC     R7
+0006 7001          JNZ     ?C0192
+0008 1E            DEC     R6
+0009         ?C0192:
+0009 14            DEC     A
+000A 4E            ORL     A,R6
+000B 70F7          JNZ     ?C0131
+000D         ?C0132:
+                                           ; SOURCE LINE # 64
+000D 120000  E     LCALL   init_rlcd
+0010 5003          JNC     ?C0133
+                                           ; SOURCE LINE # 65
+0012 120000  E     LCALL   init_rlcd
+0015         ?C0133:
+                                           ; SOURCE LINE # 66
+                                           ; SOURCE LINE # 67
+0015 D200    R     SETB    lcd_ack
+                                           ; SOURCE LINE # 68
+0017 D200    R     SETB    dirty
+                                           ; SOURCE LINE # 69
+0019 900000  R     MOV     DPTR,#rso2
+001C E0            MOVX    A,@DPTR
+001D F9            MOV     R1,A
+001E A3            INC     DPTR
+001F E0            MOVX    A,@DPTR
+0020 FA            MOV     R2,A
+0021 A3            INC     DPTR
+0022 E0            MOVX    A,@DPTR
+0023 900000  R     MOV     DPTR,#?_paint?BYTE+03H
+0026 C9            XCH     A,R1
+0027 F0            MOVX    @DPTR,A
+0028 A3            INC     DPTR
+0029 EA            MOV     A,R2
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 34  
+
+002A F0            MOVX    @DPTR,A
+002B A3            INC     DPTR
+002C E9            MOV     A,R1
+002D F0            MOVX    @DPTR,A
+002E 900000  R     MOV     DPTR,#rso1
+0031 E0            MOVX    A,@DPTR
+0032 FB            MOV     R3,A
+0033 A3            INC     DPTR
+0034 E0            MOVX    A,@DPTR
+0035 FA            MOV     R2,A
+0036 A3            INC     DPTR
+0037 E0            MOVX    A,@DPTR
+0038 F9            MOV     R1,A
+0039 120000  R     LCALL   _paint
+                                           ; SOURCE LINE # 70
+003C E4            CLR     A
+003D 900000  R     MOV     DPTR,#ui_state
+0040 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 71
+                                           ; SOURCE LINE # 72
+0041 22            RET     
+             ; FUNCTION init_i2clcd (END)
+
+             ; FUNCTION _putchar (BEGIN)
+0000 900000  R     MOV     DPTR,#out
+0003 EF            MOV     A,R7
+0004 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 74
+                                           ; SOURCE LINE # 75
+                                           ; SOURCE LINE # 76
+0005 900000  R     MOV     DPTR,#out_stream
+0008 E0            MOVX    A,@DPTR
+0009 B40109        CJNE    A,#01H,?C0135
+                                           ; SOURCE LINE # 77
+000C 900000  R     MOV     DPTR,#out
+000F E0            MOVX    A,@DPTR
+0010 FF            MOV     R7,A
+0011 120000  E     LCALL   _rputchar
+0014 22            RET     
+0015         ?C0135:
+                                           ; SOURCE LINE # 78
+0015 900000  R     MOV     DPTR,#out_stream
+0018 E0            MOVX    A,@DPTR
+0019 B40208        CJNE    A,#02H,?C0136
+                                           ; SOURCE LINE # 79
+001C 900000  R     MOV     DPTR,#out
+001F E0            MOVX    A,@DPTR
+0020 FF            MOV     R7,A
+0021 120000  E     LCALL   _sputchar
+                                           ; SOURCE LINE # 80
+0024         ?C0136:
+0024 22            RET     
+             ; FUNCTION _putchar (END)
+
+             ; FUNCTION _proc_com (BEGIN)
+0000 900000  R     MOV     DPTR,#in
+0003 EF            MOV     A,R7
+0004 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 82
+                                           ; SOURCE LINE # 83
+                                           ; SOURCE LINE # 84
+0005 E0            MOVX    A,@DPTR
+0006 120000  E     LCALL   ?C_CCASE
+0009 0000    R     DW      ?C0173
+000B 2A            DB      02AH
+000C 0000    R     DW      ?C0173
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 35  
+
+000E 2E            DB      02EH
+000F 0000    R     DW      ?C0173
+0011 43            DB      043H
+0012 0000    R     DW      ?C0155
+0014 44            DB      044H
+0015 0000    R     DW      ?C0173
+0017 4F            DB      04FH
+0018 0000    R     DW      ?C0161
+001A 52            DB      052H
+001B 0000    R     DW      ?C0158
+001D 55            DB      055H
+001E 0000    R     DW      ?C0139
+0020 7E            DB      07EH
+0021 0000    R     DW      ?C0147
+0023 7F            DB      07FH
+0024 0000          DW      00H
+0026 0000    R     DW      ?C0166
+                                           ; SOURCE LINE # 85
+                                           ; SOURCE LINE # 86
+0028         ?C0139:
+0028 900000  R     MOV     DPTR,#m_state
+002B E0            MOVX    A,@DPTR
+002C C3            CLR     C
+002D 9405          SUBB    A,#05H
+002F 5005          JNC     ?C0140
+                                           ; SOURCE LINE # 87
+0031 E0            MOVX    A,@DPTR
+0032 04            INC     A
+0033 F0            MOVX    @DPTR,A
+0034 8006          SJMP    ?C0141
+0036         ?C0140:
+                                           ; SOURCE LINE # 88
+0036 900000  R     MOV     DPTR,#m_state
+0039 7401          MOV     A,#01H
+003B F0            MOVX    @DPTR,A
+003C         ?C0141:
+                                           ; SOURCE LINE # 89
+003C 900000  E     MOV     DPTR,#ce_lll
+003F E0            MOVX    A,@DPTR
+0040 7004          JNZ     ?C0143
+0042 7F01          MOV     R7,#01H
+0044 8002          SJMP    ?C0144
+0046         ?C0143:
+0046 7F00          MOV     R7,#00H
+0048         ?C0144:
+0048 900000  R     MOV     DPTR,#m_state
+004B E0            MOVX    A,@DPTR
+004C B40304        CJNE    A,#03H,?C0145
+004F 7E01          MOV     R6,#01H
+0051 8002          SJMP    ?C0146
+0053         ?C0145:
+0053 7E00          MOV     R6,#00H
+0055         ?C0146:
+0055 EE            MOV     A,R6
+0056 5F            ANL     A,R7
+0057 6006          JZ      ?C0142
+                                           ; SOURCE LINE # 90
+0059 900000  R     MOV     DPTR,#m_state
+005C E0            MOVX    A,@DPTR
+005D 04            INC     A
+005E F0            MOVX    @DPTR,A
+005F         ?C0142:
+                                           ; SOURCE LINE # 91
+005F 120000  R     LCALL   m_reset
+                                           ; SOURCE LINE # 92
+0062 120000  R     LCALL   put_menu
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 36  
+
+                                           ; SOURCE LINE # 93
+0065 22            RET     
+                                           ; SOURCE LINE # 94
+0066         ?C0147:
+0066 900000  R     MOV     DPTR,#m_state
+0069 E0            MOVX    A,@DPTR
+006A D3            SETB    C
+006B 9401          SUBB    A,#01H
+006D 4005          JC      ?C0148
+                                           ; SOURCE LINE # 95
+006F E0            MOVX    A,@DPTR
+0070 14            DEC     A
+0071 F0            MOVX    @DPTR,A
+0072 8006          SJMP    ?C0149
+0074         ?C0148:
+                                           ; SOURCE LINE # 96
+0074 900000  R     MOV     DPTR,#m_state
+0077 7405          MOV     A,#05H
+0079 F0            MOVX    @DPTR,A
+007A         ?C0149:
+                                           ; SOURCE LINE # 97
+007A 900000  E     MOV     DPTR,#ce_lll
+007D E0            MOVX    A,@DPTR
+007E 7004          JNZ     ?C0151
+0080 7F01          MOV     R7,#01H
+0082 8002          SJMP    ?C0152
+0084         ?C0151:
+0084 7F00          MOV     R7,#00H
+0086         ?C0152:
+0086 900000  R     MOV     DPTR,#m_state
+0089 E0            MOVX    A,@DPTR
+008A B40304        CJNE    A,#03H,?C0153
+008D 7E01          MOV     R6,#01H
+008F 8002          SJMP    ?C0154
+0091         ?C0153:
+0091 7E00          MOV     R6,#00H
+0093         ?C0154:
+0093 EE            MOV     A,R6
+0094 5F            ANL     A,R7
+0095 6006          JZ      ?C0150
+                                           ; SOURCE LINE # 98
+0097 900000  R     MOV     DPTR,#m_state
+009A E0            MOVX    A,@DPTR
+009B 14            DEC     A
+009C F0            MOVX    @DPTR,A
+009D         ?C0150:
+                                           ; SOURCE LINE # 99
+009D 120000  R     LCALL   m_reset
+                                           ; SOURCE LINE # 100
+00A0 120000  R     LCALL   put_menu
+                                           ; SOURCE LINE # 101
+00A3 22            RET     
+                                           ; SOURCE LINE # 102
+00A4         ?C0155:
+00A4 900000  R     MOV     DPTR,#i_state
+00A7 E0            MOVX    A,@DPTR
+00A8 D3            SETB    C
+00A9 9401          SUBB    A,#01H
+00AB 4005          JC      ?C0156
+                                           ; SOURCE LINE # 103
+00AD E0            MOVX    A,@DPTR
+00AE 14            DEC     A
+00AF F0            MOVX    @DPTR,A
+00B0 8006          SJMP    ?C0157
+00B2         ?C0156:
+                                           ; SOURCE LINE # 104
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 37  
+
+00B2 900000  R     MOV     DPTR,#i_state
+00B5 7405          MOV     A,#05H
+00B7 F0            MOVX    @DPTR,A
+00B8         ?C0157:
+                                           ; SOURCE LINE # 105
+00B8 120000  R     LCALL   put_info
+                                           ; SOURCE LINE # 106
+00BB 22            RET     
+                                           ; SOURCE LINE # 107
+00BC         ?C0158:
+00BC 900000  R     MOV     DPTR,#i_state
+00BF E0            MOVX    A,@DPTR
+00C0 C3            CLR     C
+00C1 9405          SUBB    A,#05H
+00C3 5005          JNC     ?C0159
+                                           ; SOURCE LINE # 108
+00C5 E0            MOVX    A,@DPTR
+00C6 04            INC     A
+00C7 F0            MOVX    @DPTR,A
+00C8 8006          SJMP    ?C0160
+00CA         ?C0159:
+                                           ; SOURCE LINE # 109
+00CA 900000  R     MOV     DPTR,#i_state
+00CD 7401          MOV     A,#01H
+00CF F0            MOVX    @DPTR,A
+00D0         ?C0160:
+                                           ; SOURCE LINE # 110
+00D0 120000  R     LCALL   put_info
+                                           ; SOURCE LINE # 111
+00D3 22            RET     
+                                           ; SOURCE LINE # 112
+00D4         ?C0161:
+00D4 120000  R     LCALL   proc_run
+                                           ; SOURCE LINE # 113
+00D7 120000  R     LCALL   m_reset
+                                           ; SOURCE LINE # 114
+00DA E4            CLR     A
+00DB 900000  R     MOV     DPTR,#m_state
+00DE F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 115
+00DF 22            RET     
+                                           ; SOURCE LINE # 116
+                                           ; SOURCE LINE # 117
+                                           ; SOURCE LINE # 118
+                                           ; SOURCE LINE # 119
+                                           ; SOURCE LINE # 120
+00E0         ?C0166:
+                                           ; SOURCE LINE # 121
+00E0 900000  R     MOV     DPTR,#m_state
+00E3 E0            MOVX    A,@DPTR
+00E4 7014          JNZ     ?C0167
+                                           ; SOURCE LINE # 122
+                                           ; SOURCE LINE # 123
+00E6 7F80          MOV     R7,#080H
+00E8 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 124
+00EB 900000  R     MOV     DPTR,#s_menu
+00EE E0            MOVX    A,@DPTR
+00EF FB            MOV     R3,A
+00F0 A3            INC     DPTR
+00F1 E0            MOVX    A,@DPTR
+00F2 FA            MOV     R2,A
+00F3 A3            INC     DPTR
+00F4 E0            MOVX    A,@DPTR
+00F5 F9            MOV     R1,A
+00F6 120000  E     LCALL   _printf
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 38  
+
+                                           ; SOURCE LINE # 125
+00F9 22            RET     
+                                           ; SOURCE LINE # 126
+00FA         ?C0167:
+                                           ; SOURCE LINE # 127
+00FA 900000  R     MOV     DPTR,#cursor
+00FD E0            MOVX    A,@DPTR
+00FE 7004          JNZ     ?C0169
+0100 7F01          MOV     R7,#01H
+0102 8002          SJMP    ?C0170
+0104         ?C0169:
+0104 7F00          MOV     R7,#00H
+0106         ?C0170:
+0106 900000  R     MOV     DPTR,#in
+0109 E0            MOVX    A,@DPTR
+010A 6445          XRL     A,#045H
+010C 6004          JZ      ?C0171
+010E 7E01          MOV     R6,#01H
+0110 8002          SJMP    ?C0172
+0112         ?C0171:
+0112 7E00          MOV     R6,#00H
+0114         ?C0172:
+0114 EE            MOV     A,R6
+0115 5F            ANL     A,R7
+0116 6019          JZ      ?C0168
+                                           ; SOURCE LINE # 128
+                                           ; SOURCE LINE # 129
+0118 7F80          MOV     R7,#080H
+011A 120000  E     LCALL   _set_rlcd
+                                           ; SOURCE LINE # 130
+011D 900000  R     MOV     DPTR,#s_enter
+0120 E0            MOVX    A,@DPTR
+0121 FB            MOV     R3,A
+0122 A3            INC     DPTR
+0123 E0            MOVX    A,@DPTR
+0124 FA            MOV     R2,A
+0125 A3            INC     DPTR
+0126 E0            MOVX    A,@DPTR
+0127 F9            MOV     R1,A
+0128 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 131
+012B E4            CLR     A
+012C 900000  R     MOV     DPTR,#m_state
+012F F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 132
+0130 22            RET     
+                                           ; SOURCE LINE # 133
+0131         ?C0168:
+                                           ; SOURCE LINE # 134
+0131 900000  R     MOV     DPTR,#in
+0134 E0            MOVX    A,@DPTR
+0135 FF            MOV     R7,A
+0136 120000  R     LCALL   _proc_in
+                                           ; SOURCE LINE # 135
+                                           ; SOURCE LINE # 136
+                                           ; SOURCE LINE # 137
+0139         ?C0173:
+0139 22            RET     
+             ; FUNCTION _proc_com (END)
+
+             ; FUNCTION proc_rkey (BEGIN)
+                                           ; SOURCE LINE # 139
+                                           ; SOURCE LINE # 140
+                                           ; SOURCE LINE # 142
+0000 900000  R     MOV     DPTR,#i2ccount
+0003 E0            MOVX    A,@DPTR
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 39  
+
+0004 04            INC     A
+0005 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 143
+0006 120000  E     LCALL   rgetkey
+0009 900000  R     MOV     DPTR,#in
+000C EF            MOV     A,R7
+000D F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 144
+000E B4640F        CJNE    A,#064H,?C0174
+                                           ; SOURCE LINE # 145
+                                           ; SOURCE LINE # 146
+0011 120000  R     LCALL   init_i2clcd
+                                           ; SOURCE LINE # 147
+0014 E4            CLR     A
+0015 900000  R     MOV     DPTR,#m_state
+0018 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 148
+0019 900000  R     MOV     DPTR,#i_state
+001C 7405          MOV     A,#05H
+001E F0            MOVX    @DPTR,A
+001F 22            RET     
+                                           ; SOURCE LINE # 150
+0020         ?C0174:
+                                           ; SOURCE LINE # 151
+0020 900000  R     MOV     DPTR,#ui_state
+0023 E0            MOVX    A,@DPTR
+0024 24FE          ADD     A,#0FEH
+0026 6030          JZ      ?C0178
+0028 2402          ADD     A,#02H
+002A 7035          JNZ     ?C0179
+                                           ; SOURCE LINE # 152
+                                           ; SOURCE LINE # 153
+002C         ?C0177:
+                                           ; SOURCE LINE # 154
+002C D200    R     SETB    dirty
+                                           ; SOURCE LINE # 155
+002E 900000  R     MOV     DPTR,#s_stat
+0031 E0            MOVX    A,@DPTR
+0032 F9            MOV     R1,A
+0033 A3            INC     DPTR
+0034 E0            MOVX    A,@DPTR
+0035 FA            MOV     R2,A
+0036 A3            INC     DPTR
+0037 E0            MOVX    A,@DPTR
+0038 900000  R     MOV     DPTR,#?_paint?BYTE+03H
+003B C9            XCH     A,R1
+003C F0            MOVX    @DPTR,A
+003D A3            INC     DPTR
+003E EA            MOV     A,R2
+003F F0            MOVX    @DPTR,A
+0040 A3            INC     DPTR
+0041 E9            MOV     A,R1
+0042 F0            MOVX    @DPTR,A
+0043 900000  R     MOV     DPTR,#s_menu
+0046 E0            MOVX    A,@DPTR
+0047 FB            MOV     R3,A
+0048 A3            INC     DPTR
+0049 E0            MOVX    A,@DPTR
+004A FA            MOV     R2,A
+004B A3            INC     DPTR
+004C E0            MOVX    A,@DPTR
+004D F9            MOV     R1,A
+004E 120000  R     LCALL   _paint
+                                           ; SOURCE LINE # 156
+0051 900000  R     MOV     DPTR,#ui_state
+0054 7402          MOV     A,#02H
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 40  
+
+0056 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 157
+0057 22            RET     
+                                           ; SOURCE LINE # 158
+0058         ?C0178:
+                                           ; SOURCE LINE # 159
+0058 900000  R     MOV     DPTR,#in
+005B E0            MOVX    A,@DPTR
+005C FF            MOV     R7,A
+005D 120000  R     LCALL   _proc_com
+                                           ; SOURCE LINE # 160
+0060 22            RET     
+                                           ; SOURCE LINE # 161
+0061         ?C0179:
+0061 E4            CLR     A
+0062 900000  R     MOV     DPTR,#ui_state
+0065 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 162
+                                           ; SOURCE LINE # 163
+                                           ; SOURCE LINE # 164
+0066         ?C0175:
+0066 22            RET     
+             ; FUNCTION proc_rkey (END)
+
+             ; FUNCTION initialise (BEGIN)
+                                           ; SOURCE LINE # 30
+                                           ; SOURCE LINE # 31
+                                           ; SOURCE LINE # 32
+0000 D2AF          SETB    EA
+                                           ; SOURCE LINE # 33
+0002 C2C6          CLR     BHC_TEST
+                                           ; SOURCE LINE # 34
+0004 438780        ORL     PCON,#080H
+                                           ; SOURCE LINE # 35
+0007 120000  E     LCALL   init_ce
+                                           ; SOURCE LINE # 36
+000A 7FFD          MOV     R7,#0FDH
+000C 120000  E     LCALL   _init_serial
+                                           ; SOURCE LINE # 37
+000F 7F68          MOV     R7,#068H
+0011 120000  E     LCALL   _init_iic
+                                           ; SOURCE LINE # 38
+0014 120000  E     LCALL   init_rtc
+                                           ; SOURCE LINE # 39
+0017 120000  E     LCALL   init_rkpad
+                                           ; SOURCE LINE # 40
+001A 120000  R     LCALL   init_i2clcd
+                                           ; SOURCE LINE # 41
+001D 7F04          MOV     R7,#04H
+001F 120000  E     LCALL   _ce_sig
+                                           ; SOURCE LINE # 42
+0022 7B02          MOV     R3,#02H
+0024 7A00    E     MOV     R2,#HIGH ce_t0
+0026 7900    E     MOV     R1,#LOW ce_t0
+0028 120000  E     LCALL   _get_time
+                                           ; SOURCE LINE # 43
+002B 22            RET     
+             ; FUNCTION initialise (END)
+
+             ; FUNCTION proc_db (BEGIN)
+                                           ; SOURCE LINE # 45
+                                           ; SOURCE LINE # 46
+                                           ; SOURCE LINE # 47
+0000 C200    E     CLR     db_flag
+                                           ; SOURCE LINE # 48
+0002 900000  R     MOV     DPTR,#out_stream
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 41  
+
+0005 7402          MOV     A,#02H
+0007 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 49
+0008 FB            MOV     R3,A
+0009 7A00    E     MOV     R2,#HIGH ce_tn
+000B 7900    E     MOV     R1,#LOW ce_tn
+000D 120000  E     LCALL   _get_time
+0010 5028          JNC     ?C0181
+                                           ; SOURCE LINE # 50
+                                           ; SOURCE LINE # 51
+0012 7B02          MOV     R3,#02H
+0014 7A00    E     MOV     R2,#HIGH ce_tn
+0016 7900    E     MOV     R1,#LOW ce_tn
+0018 120000  E     LCALL   _tim2lng
+001B EC            MOV     A,R4
+001C 4D            ORL     A,R5
+001D 4E            ORL     A,R6
+001E 4F            ORL     A,R7
+001F 7005          JNZ     ?C0182
+                                           ; SOURCE LINE # 52
+0021 7F05          MOV     R7,#05H
+0023 120000  E     LCALL   _ce_sig
+0026         ?C0182:
+                                           ; SOURCE LINE # 53
+0026 7B02          MOV     R3,#02H
+0028 7A00    E     MOV     R2,#HIGH ce_tn
+002A 7900    E     MOV     R1,#LOW ce_tn
+002C 120000  E     LCALL   _print_time
+                                           ; SOURCE LINE # 54
+002F 7B05          MOV     R3,#05H
+0031 7A00    R     MOV     R2,#HIGH ?SC_600
+0033 7900    R     MOV     R1,#LOW ?SC_600
+0035 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 55
+0038 8009          SJMP    ?C0183
+003A         ?C0181:
+                                           ; SOURCE LINE # 56
+003A 7B05          MOV     R3,#05H
+003C 7A00    R     MOV     R2,#HIGH ?SC_602
+003E 7900    R     MOV     R1,#LOW ?SC_602
+0040 120000  E     LCALL   _printf
+0043         ?C0183:
+                                           ; SOURCE LINE # 57
+0043 120000  R     LCALL   ui_slog
+                                           ; SOURCE LINE # 58
+0046 22            RET     
+             ; FUNCTION proc_db (END)
+
+             ; FUNCTION main (BEGIN)
+                                           ; SOURCE LINE # 60
+                                           ; SOURCE LINE # 61
+                                           ; SOURCE LINE # 62
+0000 120000  R     LCALL   initialise
+0003         ?C0185:
+                                           ; SOURCE LINE # 63
+                                           ; SOURCE LINE # 64
+                                           ; SOURCE LINE # 65
+0003 120000  E     LCALL   test_rkey
+0006 5003          JNC     ?C0187
+                                           ; SOURCE LINE # 66
+0008 120000  R     LCALL   proc_rkey
+000B         ?C0187:
+                                           ; SOURCE LINE # 67
+000B 300003  E     JNB     db_flag,?C0188
+                                           ; SOURCE LINE # 68
+000E 120000  R     LCALL   proc_db
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 42  
+
+0011         ?C0188:
+                                           ; SOURCE LINE # 69
+0011 3000EF  E     JNB     ui_flag,?C0185
+                                           ; SOURCE LINE # 70
+                                           ; SOURCE LINE # 71
+0014 D2C6          SETB    BHC_TEST
+                                           ; SOURCE LINE # 72
+0016 E4            CLR     A
+0017 FF            MOV     R7,A
+0018 120000  E     LCALL   _wdog
+                                           ; SOURCE LINE # 73
+001B 120000  R     LCALL   ui_update
+                                           ; SOURCE LINE # 74
+001E C2C6          CLR     BHC_TEST
+                                           ; SOURCE LINE # 75
+                                           ; SOURCE LINE # 76
+0020 80E1          SJMP    ?C0185
+                                           ; SOURCE LINE # 77
+0022 22            RET     
+             ; FUNCTION main (END)
+
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 43  
+
+NAME                                    CLASS   MSPACE  TYPE    OFFSET  SIZE
+====                                    =====   ======  ====    ======  ====
+
+
+_paint . . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+  l1 . . . . . . . . . . . . . . . . .  AUTO     XDATA  PTR      0000H  3
+  l2 . . . . . . . . . . . . . . . . .  AUTO     XDATA  PTR      0003H  3
+s_noff . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      0000H  3
+s_pflow. . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      0003H  3
+pressure . . . . . . . . . . . . . . .  EXTERN   XDATA  U_CHAR   -----  1
+s_nman . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      0006H  3
+rgetkey. . . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+a_stat . . . . . . . . . . . . . . . .  EXTERN   XDATA  U_CHAR   -----  1
+ce_run . . . . . . . . . . . . . . . .  EXTERN   XDATA  U_CHAR   -----  1
+s_sflow. . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      0009H  3
+AA . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00DAH  1
+s_stpng. . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      000CH  3
+T0 . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00B4H  1
+AC . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00D6H  1
+s_time . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      000FH  3
+s_start. . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      0012H  3
+s_rstng. . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      0015H  3
+T1 . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00B5H  1
+DB . . . . . . . . . . . . . . . . . .  PUBLIC   XDATA  ARRAY    0018H  30000
+sample . . . . . . . . . . . . . . . .  TYPEDEF  -----  STRUCT   -----  15
+  a. . . . . . . . . . . . . . . . . .  MEMBER   -----  ARRAY    0000H  8
+  i. . . . . . . . . . . . . . . . . .  MEMBER   -----  U_CHAR   0008H  1
+  o. . . . . . . . . . . . . . . . . .  MEMBER   -----  U_CHAR   0009H  1
+  f. . . . . . . . . . . . . . . . . .  MEMBER   -----  U_CHAR   000AH  1
+  t. . . . . . . . . . . . . . . . . .  MEMBER   -----  U_LONG   000BH  4
+t_start. . . . . . . . . . . . . . . .  PUBLIC   XDATA  STRUCT   7548H  3
+ECM0 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00ECH  1
+EA . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00AFH  1
+rso1 . . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      754BH  3
+_paint_rlcd. . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+ECM1 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00EDH  1
+s_fset . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      754EH  3
+rso2 . . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      7551H  3
+ECM2 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00EEH  1
+clear. . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      7554H  3
+CMI0 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00CCH  1
+s_nrng . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      7557H  3
+s_menu . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      755AH  3
+CMI1 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00CDH  1
+s_rlll . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      755DH  3
+ce_tn. . . . . . . . . . . . . . . . .  EXTERN   XDATA  STRUCT   -----  3
+CMI2 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00CEH  1
+T20V . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00CFH  1
+ECT0 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00E8H  1
+s_flow . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      7560H  3
+s_nrll . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      7563H  3
+s_lset . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      7566H  3
+ECT1 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00E9H  1
+ECT2 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00EAH  1
+s_pres . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      7569H  3
+ECT3 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00EBH  1
+calc_level . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+CTI0 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00C8H  1
+PCM0 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00FCH  1
+f_new. . . . . . . . . . . . . . . . .  PUBLIC   XDATA  U_CHAR   756CH  1
+s_stat . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      756DH  3
+CTI1 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00C9H  1
+PCM1 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00FDH  1
+_wdog. . . . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+CTI2 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00CAH  1
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 44  
+
+NAME                                    CLASS   MSPACE  TYPE    OFFSET  SIZE
+====                                    =====   ======  ====    ======  ====
+
+
+PCM2 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00FEH  1
+f_set. . . . . . . . . . . . . . . . .  EXTERN   XDATA  U_CHAR   -----  1
+CTI3 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00CBH  1
+v_stat . . . . . . . . . . . . . . . .  EXTERN   XDATA  U_CHAR   -----  1
+s_tset . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      7570H  3
+RD . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00B7H  1
+l_new. . . . . . . . . . . . . . . . .  PUBLIC   XDATA  U_CHAR   7573H  1
+ENS1 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00DEH  1
+PCT0 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00F8H  1
+PCT1 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00F9H  1
+l_set. . . . . . . . . . . . . . . . .  EXTERN   XDATA  U_CHAR   -----  1
+PCT2 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00FAH  1
+RI . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      0098H  1
+PCT3 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00FBH  1
+s_stop . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      7574H  3
+SI . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00DBH  1
+INT0 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00B2H  1
+CY . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00D7H  1
+s_pll. . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      7577H  3
+s_nrst . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      757AH  3
+TI . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      0099H  1
+INT1 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00B3H  1
+f_tot. . . . . . . . . . . . . . . . .  EXTERN   XDATA  U_LONG   -----  4
+s_sll. . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      757DH  3
+date . . . . . . . . . . . . . . . . .  TYPEDEF  -----  STRUCT   -----  2
+  d. . . . . . . . . . . . . . . . . .  MEMBER   -----  U_CHAR   0000H  1
+  m. . . . . . . . . . . . . . . . . .  MEMBER   -----  U_CHAR   0001H  1
+_tim2lng . . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+cursor . . . . . . . . . . . . . . . .  PUBLIC   XDATA  U_CHAR   7580H  1
+water_level. . . . . . . . . . . . . .  EXTERN   XDATA  U_CHAR   -----  1
+_print_time. . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+s_oor. . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      7581H  3
+OV . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00D2H  1
+calc_press . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+main . . . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+ulong. . . . . . . . . . . . . . . . .  TYPEDEF  -----  U_LONG   -----  4
+adc. . . . . . . . . . . . . . . . . .  EXTERN   XDATA  ARRAY    -----  -----
+WR . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00B6H  1
+t_now. . . . . . . . . . . . . . . . .  PUBLIC   XDATA  STRUCT   7584H  3
+t_in . . . . . . . . . . . . . . . . .  PUBLIC   XDATA  STRUCT   7587H  3
+i2ccount . . . . . . . . . . . . . . .  PUBLIC   XDATA  U_CHAR   758AH  1
+init_rkpad . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+_init_iic. . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+dirty. . . . . . . . . . . . . . . . .  PUBLIC   DATA   BIT      0000H  1
+time . . . . . . . . . . . . . . . . .  TYPEDEF  -----  STRUCT   -----  3
+  h. . . . . . . . . . . . . . . . . .  MEMBER   -----  U_CHAR   0000H  1
+  m. . . . . . . . . . . . . . . . . .  MEMBER   -----  U_CHAR   0001H  1
+  s. . . . . . . . . . . . . . . . . .  MEMBER   -----  U_CHAR   0002H  1
+PCON . . . . . . . . . . . . . . . . .  SFR      DATA   U_CHAR   0087H  1
+initialise . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+_ce_sllev. . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+_get_time. . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+_p_ilevel. . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+  in . . . . . . . . . . . . . . . . .  AUTO     XDATA  CHAR     0000H  1
+_set_rlcd. . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+byte . . . . . . . . . . . . . . . . .  TYPEDEF  -----  U_CHAR   -----  1
+_proc_com. . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+  in . . . . . . . . . . . . . . . . .  AUTO     XDATA  CHAR     0000H  1
+_db_print. . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+  idx. . . . . . . . . . . . . . . . .  AUTO     XDATA  U_INT    0000H  2
+  i. . . . . . . . . . . . . . . . . .  AUTO     XDATA  U_CHAR   0002H  1
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 45  
+
+NAME                                    CLASS   MSPACE  TYPE    OFFSET  SIZE
+====                                    =====   ======  ====    ======  ====
+
+
+_db_store. . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+  idx. . . . . . . . . . . . . . . . .  AUTO     XDATA  U_INT    0000H  2
+  i. . . . . . . . . . . . . . . . . .  * REG *  DATA   U_CHAR   0007H  1
+s_wl . . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      758BH  3
+_ce_sflow. . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+flow . . . . . . . . . . . . . . . . .  EXTERN   XDATA  U_CHAR   -----  1
+init_rlcd. . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+IE0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      0089H  1
+_set_time. . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+IE1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      008BH  1
+uint . . . . . . . . . . . . . . . . .  TYPEDEF  -----  U_INT    -----  2
+log. . . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      758EH  3
+db_flag. . . . . . . . . . . . . . . .  EXTERN   DATA   BIT      -----  1
+lcd_ack. . . . . . . . . . . . . . . .  PUBLIC   DATA   BIT      0001H  1
+CR0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00D8H  1
+db_page. . . . . . . . . . . . . . . .  PUBLIC   XDATA  U_CHAR   7591H  1
+ui_update. . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+CR1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00D9H  1
+ES0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00ACH  1
+_io_print. . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+  out. . . . . . . . . . . . . . . . .  * REG *  DATA   U_CHAR   0007H  1
+  i. . . . . . . . . . . . . . . . . .  AUTO     XDATA  U_CHAR   0000H  1
+  t. . . . . . . . . . . . . . . . . .  AUTO     XDATA  U_CHAR   0001H  1
+ET0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00A9H  1
+ES1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00ADH  1
+out_stream . . . . . . . . . . . . . .  PUBLIC   XDATA  U_CHAR   7592H  1
+ET1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00ABH  1
+EAD. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00AEH  1
+TF0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      008DH  1
+init_i2clcd. . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+  wait . . . . . . . . . . . . . . . .  * REG *  DATA   U_INT    0006H  2
+_p_itime . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+  in . . . . . . . . . . . . . . . . .  AUTO     XDATA  CHAR     0000H  1
+  t. . . . . . . . . . . . . . . . . .  AUTO     XDATA  U_CHAR   0001H  1
+ET2. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00EFH  1
+TF1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      008FH  1
+RB8. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      009AH  1
+_ce_sig. . . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+ce_t0. . . . . . . . . . . . . . . . .  EXTERN   XDATA  STRUCT   -----  3
+EX0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00A8H  1
+IT0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      0088H  1
+_proc_in . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+  in . . . . . . . . . . . . . . . . .  AUTO     XDATA  CHAR     0000H  1
+_rputchar. . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+TB8. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      009BH  1
+EX1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00AAH  1
+IT1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      008AH  1
+_sputchar. . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+P. . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00D0H  1
+ce_mode. . . . . . . . . . . . . . . .  EXTERN   XDATA  U_CHAR   -----  1
+SM0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      009FH  1
+SM1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      009EH  1
+SM2. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      009DH  1
+PS0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00BCH  1
+proc_rkey. . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+  in . . . . . . . . . . . . . . . . .  AUTO     XDATA  CHAR     0000H  1
+_p_iflow . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+  in . . . . . . . . . . . . . . . . .  AUTO     XDATA  CHAR     0000H  1
+PT0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00B9H  1
+PS1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00BDH  1
+show_time. . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 46  
+
+NAME                                    CLASS   MSPACE  TYPE    OFFSET  SIZE
+====                                    =====   ======  ====    ======  ====
+
+
+PT1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00BBH  1
+PAD. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00BEH  1
+RS0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00D3H  1
+PT2. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00FFH  1
+TR0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      008CH  1
+RS1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00D4H  1
+put_flag . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+  on . . . . . . . . . . . . . . . . .  AUTO     DATA   BIT      0000H  1
+  out. . . . . . . . . . . . . . . . .  AUTO     XDATA  CHAR     0000H  1
+TR1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      008EH  1
+PX0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00B8H  1
+PX1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00BAH  1
+old_flow . . . . . . . . . . . . . . .  PUBLIC   XDATA  U_CHAR   7593H  1
+ui_flag. . . . . . . . . . . . . . . .  EXTERN   DATA   BIT      -----  1
+_putchar . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+  out. . . . . . . . . . . . . . . . .  AUTO     XDATA  CHAR     0000H  1
+proc_db. . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+init_ce. . . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+test_rkey. . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+init_rtc . . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+put_status . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+set_llev . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+ui_state . . . . . . . . . . . . . . .  PUBLIC   XDATA  U_CHAR   7594H  1
+ce_din . . . . . . . . . . . . . . . .  EXTERN   XDATA  U_CHAR   -----  1
+REN. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      009CH  1
+ce_dout. . . . . . . . . . . . . . . .  EXTERN   XDATA  U_CHAR   -----  1
+set_flow . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+STA. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00DDH  1
+put_info . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+db_log . . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+db_idx . . . . . . . . . . . . . . . .  PUBLIC   XDATA  U_INT    7595H  2
+i_state. . . . . . . . . . . . . . . .  PUBLIC   XDATA  U_CHAR   7597H  1
+proc_run . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+ce_lll . . . . . . . . . . . . . . . .  EXTERN   XDATA  U_CHAR   -----  1
+RXD. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00B0H  1
+BHC_TEST . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00C6H  1
+ce_cos . . . . . . . . . . . . . . . .  EXTERN   XDATA  U_CHAR   -----  1
+ui_refr. . . . . . . . . . . . . . . .  PUBLIC   DATA   BIT      0002H  1
+TXD. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00B1H  1
+m_state. . . . . . . . . . . . . . . .  PUBLIC   XDATA  U_CHAR   7598H  1
+put_menu . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+m_reset. . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+s_rning. . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      7599H  3
+s_enter. . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      759CH  3
+s_ptime. . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      759FH  3
+F0 . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00D5H  1
+ui_slog. . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+STO. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00DCH  1
+_printf. . . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+s_stime. . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      75A2H  3
+_init_serial . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   3217    ----
+   CONSTANT SIZE    =    612    ----
+   XDATA SIZE       =  30117      22
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      3       1
+END OF MODULE INFORMATION.
+C51 COMPILER V3.40,  BHC                                                                   15/05/98  13:41:41  PAGE 47  
+
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,149 @@
+
+                ProComm (tm) Version 2.4.2 Description
+                           October 17, 1986
+         Copyright (C) 1985, 1986 Datastorm Technologies, Inc.
+                     Bruce Barkelew and Tom Smith
+
+                          BBS: (314) 449-9401
+
+    This document describes the changes, additions, and bug fixes
+    to ProComm version 2.4.2.
+
+    -   Problems with CompuServe B protocol downloads have been fixed.
+
+    -   Televideo Ctrl-^ home sequence processing has been fixed
+
+    -   Fixed ALT-H hangup problem when Host mode connection type set
+        to direct.
+
+    -   2.4 Manual Addendum: The manual lists a CMD command for ASCII
+        downloads, GETFILE ASCII "filename".  This is in error.  That
+        command does not exist.  Only ASCII uploads can be performed
+        using the command language.
+
+    -   NOTE: 2.4 will automatically create a new PROCOMM.PRM file
+        if it finds a 2.3 or earlier .PRM file.
+
+
+
+                ProComm (tm) Version 2.4.1 Description
+                            October 7, 1986
+         Copyright (C) 1985, 1986 Datastorm Technologies, Inc.
+                     Bruce Barkelew and Tom Smith
+
+                          BBS: (314) 449-9401
+
+    This document describes the changes, additions, and bug fixes
+    to ProComm version 2.4.1.
+
+    -   A bug in the ANSI/BBS emulation's processing of nulls and
+        the cursor left sequence has been fixed.
+
+    -   In TERMINAL SETUP, the break length option wasn't getting
+        saved, and items 10 and 11 were transposed on the screen
+        after updating.  This has been fixed.
+
+    -   Problems with CompuServe B protocol uploads have been fixed.
+
+    -   Added command language support for outgoing backspace key.
+        New command structure: SET BACKSPACE IN DEST/NONDEST for
+        incoming backspace.  SET BACKSPACE OUT BACKSPACE/DELETE for
+        outgoing backspace keystroke.
+
+    -   NOTE: The only change in the manual between v2.4 and v2.4.1
+        is in the description of the above command language change.
+        Otherwise, the manual hasn't changed.
+
+
+
+                 ProComm (tm) Version 2.4 Description
+                          September 22, 1986
+         Copyright (C) 1985, 1986 Datastorm Technologies, Inc.
+                     Bruce Barkelew and Tom Smith
+
+                          BBS: (314) 449-9401
+
+    This document describes the changes, additions, and bug fixes
+    to ProComm version 2.4.
+
+
+    -   All new high level command language.  Use CMDCNVT.EXE to convert
+        old scripts to the new format.  (Consult the documentation for
+        a complete description of the new command language.)
+
+    -   CompuServe B protocol now supported
+
+    -   Windowed XMODEM (WXMODEM) now supported
+
+    -   COM3 and COM4 are now supported
+
+    -   Fixed manual dial/linked cmd file problem
+
+    -   Added Tab handling to Redisplay buffer
+
+    -   Changed ANSWERBACK to ENQ, added CompuServe B
+
+    -   ENQ now works in ANSI terminal emulation
+
+    -   Added modem cmd suffix, defaults to CR
+
+    -   Added default download directory
+
+    -   Added BS key definition (BS or DEL)
+
+    -   Added Kermit handshake setup
+
+    -   Added multiple kb macro files
+
+    -   MODEM INIT string no longer has default CR- you must
+        include it in string.
+
+    -   AUTO-ANSWER string no longer has default CR- you must
+        include it in string.
+
+    -   ALT-Y sends auto answer string
+
+    -   ALT-C will now clear the screen to your default colors
+
+    -   Increased file transfer timeouts in host mode
+
+    -   Improved XMODEM family EOT handling and error recovery
+
+    -   /D command line switch for dual monitors (no auto detect).
+        Use this switch if you have a mono card and color card
+        in the same machine.
+
+    -   VT100 and VT52 now support all print functions.
+
+    -   VT100 now supports programable tab stops
+
+    -   Fixed VT100 bug with ESC [ 2 l and ESC [ ? 2 l
+
+    -   Fixed VT100 bug when keypad appl. mode keys echoed back.
+
+    -   VT52 line graphics mode fixed (worked in 2.2 but not in 2.3)
+
+    -   Fixed bug when INS is pressed in col 80.
+
+    -   Fixed XOFF/XON flow control problem in ASCII uploads.
+
+    -   Keyboard macros can now be used in chat mode.
+
+    -   F)iles and S)hell in host only work for COM1 & COM2 due to
+        lack of DOS support for COM3 and COM4.
+
+    -   Added host autobaud detect to host mode.  2 methods.
+        Method 1 uses the messages sent by the modem i.e. CONNECT 1200.
+        Method 2 uses incoming character checking.  Remote caller must
+        press CR or space bar a few times for host to detect baud rate.
+
+    -   Added user setable BREAK length
+
+    -   VT100 and VT52 keyboard layout switched to physical mapping.
+        The unshifted function keys are like the 2 left rows of the
+        VT100 keypad, and the shifted function keys are like the 2
+        right rows of the VT100 keypad.  (Consult the documentation
+        for exact mapping.)
+
+
+

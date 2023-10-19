@@ -1,0 +1,133 @@
+C51 COMPILER V3.40,  CBKEY                                                                 06/04/97  22:12:38  PAGE 1   
+
+
+DOS C51 COMPILER V3.40, COMPILATION OF MODULE CBKEY
+OBJECT MODULE PLACED IN CBKEY.OBJ
+COMPILER INVOKED BY: C:\C51\BIN\C51.EXE CBKEY.C
+
+stmt level    source
+
+   1          /************************************************************************/
+   2          /*			Copyright Q Solutions				*/
+   3          /*	File:		cbkey.c						*/
+   4          /*	Programmer:	MoT						*/
+   5          /*	Module:		Switch Matrix Keypad Driver			*/
+   6          /*									*/
+   7          /*			History						*/
+   8          /* 19:57 30/03/1997	Written from scratch				*/
+   9          /*			Usage notes added to cbkey.h			*/
+  10          /************************************************************************/
+  11          
+  12          #include	<reg552.h>
+  13          
+  14          /* Target Specific Parameters						*/
+  15          #define	K_CTRL	P4			/* Keypad control lines		*/
+  16          #define	K_MON	P5			/* Keypad Monitor lines		*/
+  17          #define	K_MASK	0x1F			/* Keypad Monitor mask		*/
+  18          #define K_ROWS	4			/* Number of keypad rows	*/
+  19          #define	K_COLM	5			/* Number of keypad columns	*/
+  20          /* Keypad response parameters						*/
+  21          #define	K_SS	100			/* Keypad sample size		*/
+  22          #define	K_TH	75			/* Keypad "ON" threshold	*/
+  23          #define	K_SP	0x80			/* Timer reload-> samp period	*/
+  24          
+  25          #define	ON	1
+  26          #define	OFF	0
+  27          typedef	unsigned int	uint;
+  28          typedef	unsigned char	byte;
+  29          byte	mask[8]=	{ 1, 2, 4, 8, 16, 32, 64, 128 };
+  30          
+  31          void	init_cbkey	( void );	/* Initialise Keypad		*/
+  32          bit	test_cbkey	( void );	/* Nonblocking test for keypress*/
+  33          char	read_cbkey	( void );	/* Wait for keypress, return it	*/
+  34          
+  35          uint	keycount= 0;			/* Keypad Samples count		*/
+  36          uint	keysum=	0;			/* Accumulated Keypad Samples	*/
+  37          bit	newkey= OFF;			/* Incoming keypress flag	*/
+  38          bit	keystate= ON;			/* Keyup or Keydown		*/
+  39          char	key_in;				/* Keypad buffer		*/
+  40          
+  41          void	init_cbkey	( void )	/* Initialise Cross Bar Keypad	*/
+  42          {
+  43   1      	ET0=	ON;			/* Enable timer 1 interrupt	*/
+  44   1      	TCON=	0x20;			/* T0: Mode 0			*/
+  45   1      	TH0=	K_SP;			/* Set timer reload value	*/
+  46   1      	TR0=	ON;			/* Start timer			*/
+  47   1      	K_CTRL=	0;			/* Pull controll lines down	*/
+  48   1      }
+  49          
+  50          bit	test_cbkey	( void )	/* Nonblocking test for keypress*/
+  51          {
+  52   1      	return	( newkey );		/* Return keypress flag		*/
+  53   1      }
+  54          
+  55          char	read_cbkey	( void )	/* Wait for keypress, return it	*/
+  56          {
+  57   1      	while	( !newkey );		/* Wait for keypress		*/
+  58   1      	newkey=	OFF;			/* Reset flag			*/
+  59   1      	return	( key_in );		/* Return keypad buffer		*/
+C51 COMPILER V3.40,  CBKEY                                                                 06/04/97  22:12:38  PAGE 2   
+
+  60   1      }
+  61          
+  62          void	storekey	( void )	/* Low level keypad read	*/
+  63          {
+  64   1      byte	x, y;
+  65   1      byte	i;
+  66   1      byte	row=	0;
+  67   1      byte	column= 0;
+  68   1      	for	( i= 0; i< K_COLM; i++ )/* Check each Column		*/
+  69   1      	{
+  70   2      		if (!( K_MON& mask[i] ))/* Column is low		*/
+  71   2      			y= i;		/* Set column number		*/
+  72   2      	}
+  73   1      	for	( i= 0; i< K_ROWS; i++ )/* Check each row		*/
+  74   1      	{
+  75   2      		K_CTRL=	~mask[i];	/* Pull row low			*/
+  76   2      		if ( ~K_MON& K_MASK )	/* Row is switched		*/
+  77   2      			x= i;		/* Set row number		*/
+  78   2      	}
+  79   1      	K_CTRL=	0;			/* Reset control lines		*/
+  80   1      	key_in=	K_COLM* x+ y;		/* Assign keycode		*/
+  81   1      	newkey=	ON;			/* Set new keypress flag	*/
+  82   1      }
+  83          
+  84          void	t0_int	( void ) interrupt 1	/* Keypad sampler interrupt	*/
+  85          {
+  86   1      	if	( ~K_MON& K_MASK )	/* Press detect			*/
+  87   1      	{
+  88   2      		keysum++;
+  89   2      	}
+  90   1      	if	( ++keycount== K_SS )	/* Sample over			*/
+  91   1      	{
+  92   2      		if ( keysum >= K_TH ) 	/* Above threshold "ON"		*/
+  93   2      		{
+  94   3      			if (!keystate)	/* Change of state		*/
+  95   3      			{
+  96   4      			   storekey( );	/* Put character in buffer	*/
+  97   4      			   keystate= ON;/* Store state			*/
+  98   4      			}
+  99   3      		}
+ 100   2      		else			/* Key is up			*/
+ 101   2      		{
+ 102   3      			if (keystate)	/* Change of state		*/
+ 103   3      			   keystate= OFF;
+ 104   3      		}
+ 105   2      		keycount= 0;		/* Reset sample counter		*/
+ 106   2      		keysum=	0;		/* Reset sum			*/
+ 107   2      	}
+ 108   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    189    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     13       2
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      2    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

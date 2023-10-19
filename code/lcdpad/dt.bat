@@ -1,0 +1,1 @@
+d:\emulator\dl -D2764 lcdpad.bin

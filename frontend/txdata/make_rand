@@ -1,0 +1,14 @@
+######################################################
+#
+#    compile the random make random program
+#
+######################################################
+
+#SHELL= /bin/sh
+
+#INC = $(INCLUDE)/msg.h
+#LIBRARAY =
+
+random : random.c
+	echo
+	cc -g -Zi -lx random.c -lm -o $@ 

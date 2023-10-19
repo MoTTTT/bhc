@@ -1,0 +1,70 @@
+/*			Copyright Q Solutions				*/
+/*	File:		hardware.txt					*/
+/*	Programmer:	Martin Colley (MoT)				*/
+/*	Project:	Borehole Controller				*/
+/*	Modules:	Main CPU, Analog, and Digital Cards		*/
+/*	Description:	Hardware test and porting report, and		*/
+/*			Programmers Notes for the Infotrans Cards	*/
+/*									*/
+CPU Card
+	EPROM (Emulated)
+		Lower 32K Program memmory working. (ie 9370 byte executable,
+		located in data space from locateion 0x00, functions
+		correctly)
+	RAM	
+I2C bus
+	Blown Hardware detected, repaired.
+	Long I2C bus cable causing unreliable communication.
+	Reliable I2C bus communication with the LcdPad
+		achieved for short (~1m) cable lengths.
+	Testing Complete.
+Analog Card
+	Settings:	Card Addressed using CS1 (ie jumper J01 on)
+			Low order address 0x?F
+			With analog select, address is 0xF02F
+	Usage:		Enable analog output to controller by writing 
+				enable mask to XDATA 0xF02F
+				(ie write 0xFF at startup)
+	Test:		Analog output switched succesfully.
+			Analog voltage measured at microcontroller,
+				varying with emulator setting.
+	Testing Complete.
+Analogs
+	Vref at ~2V.
+	Emulated signal measurable on controller pins.
+	ADC reading 0xFF (or 0x00 at startup) for all input values.
+		80C552 ADC port blown?
+
+Digital Card
+	Mechanical:	Leads too long (solder side)
+			R16 not solder both sides (Din8+)
+	Settings:	Card addressed using CS2 (ie jumper J02 on)
+			Low order address 0x?F (ie jumper J09..J012 off)
+	Usage:		Write control output (one byte) to XDATA 0xF20F
+	Test:		Relays switching on power up
+			Relays switching (audio inspection) on writing to latch
+			Emulator led's not following relay setting
+	Debug:		Card not working in first slot
+			Card not working in absence of ADC card
+			Need extender board to debug Digital card
+Housing
+	Chassis Voltage level intermittently floating, 5V etc
+		sensitive to simulator connection and physical movement
+PSU
+	Emulator used as supplied, on 20V rail.
+		Fuse blows on connection of digital emulator
+		Replace fuse
+		Connect emulator to 5V rail
+	Intermittent physical connection/signal evident with led output state
+		sensitive to movement of the digital card. Leads too long?
+	Chassis at 5V with ADC emulator plugged in
+Emulator
+	Pannel mount connection method unstable, freeing connectors.
+		Wiring breakages at solder joints - resoldered
+	No Documentation.
+	Timer wired to I2C bus on CON01.
+		Timer disconnected
+		80C552 blown, replaced
+		RTC blown, removed
+	LEDs default to on when connected, 4th LED off.
+	Switching relays not changing LED output

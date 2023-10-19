@@ -1,0 +1,17 @@
+######################################################
+#
+#    compile the txdata make txdata program
+#
+######################################################
+
+#SHELL= /bin/sh
+
+#INC = $(INCLUDE)/msg.h
+#LIBRARAY =
+
+txdata : txdata.c
+	echo
+	cc -g -Zi -lx txdata.c -lm -o $@ 
+#	cp txdata.c $TEST
+#	cp txdata $TEST
+#	cp txdata ../bin

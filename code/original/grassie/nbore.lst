@@ -1,0 +1,580 @@
+C51 COMPILER V3.40,  NBORE                                                                 03/04/97  18:25:42  PAGE 1   
+
+
+DOS C51 COMPILER V3.40, COMPILATION OF MODULE NBORE
+OBJECT MODULE PLACED IN NBORE.OBJ
+COMPILER INVOKED BY: C:\C51\BIN\C51.EXE NBORE.C
+
+stmt level    source
+
+   1          #pragma la
+   2          #pragma maxargs (4)
+   3          
+   4          #define STATION "toto"
+   5          #define Flows 5
+   6          #define MaksFlow 10
+   7          
+   8          /** **************************************************************** **/
+   9          /** !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! **/
+  10          /**                                                                  **/
+  11          /**   This product with all documentation is the property of         **/
+  12          /**                                                                  **/
+  13          /**                    INFOTRANS CC                                  **/
+  14          /**                                                                  **/
+  15          /**   This product with all documentation and associated software    **/
+  16          /**      on Programmable Read Only Memoery ( PROM) should not be     **/
+  17          /**      copied, duplicated by any means without the permission      **/
+  18          /**      or shown to any body without the written permission         **/
+  19          /**      of the owner(s) INFOTRANS.                                  **/
+  20          /**                                                                  **/
+  21          /** !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! **/
+  22          /** **************************************************************** **/
+  23          #include <c:\c51v4\inc\stdio.h>
+*** ERROR 318 IN LINE 23 OF NBORE.C: can't open file 'c:\c51v4\inc\stdio.h'
+*** ERROR 318 IN LINE 24 OF NBORE.C: can't open file 'c:\c51v4\inc\math.h'
+*** ERROR 318 IN LINE 25 OF NBORE.C: can't open file 'c:\c51v4\inc\string.h'
+*** ERROR 318 IN LINE 26 OF NBORE.C: can't open file 'c:\c51v4\inc\stdlib.h'
+*** ERROR 318 IN LINE 27 OF NBORE.C: can't open file 'c:\c51v4\inc\intrins.h'
+*** ERROR 318 IN LINE 28 OF NBORE.C: can't open file 'c:\c51v4\inc\ctype.h'
+*** ERROR 318 IN LINE 29 OF NBORE.C: can't open file 'c:\c51v4\inc\reg552.h'
+*** ERROR 129 IN LINE 49 OF C:\C51V4\INC\REG552.H: missing ';' before '_at_'
+              #include <c:\c51v4\inc\math.h>
+              #include <c:\c51v4\inc\string.h>
+              #include <c:\c51v4\inc\stdlib.h>
+              #include <c:\c51v4\inc\intrins.h>
+              #include <c:\c51v4\inc\ctype.h>
+              #include <c:\c51v4\inc\reg552.h>
+              
+              #define Test
+              
+              #define T2tes
+              #define TRUE  1
+              #define DAYS  1
+              #define FALSE 0
+              #define DEBUG
+              #define NoLockOut  0xFE   /** & byte to stop lock out pump **/
+              #define LockOut    0x01   /** | byte to do lock out **/
+              #define PumpOFF    0xFD   /** & byte to switch pump off **/
+              #define PumpON     0x02   /** | byte to switch pump on **/
+              #define ValveClose 0x04   /** | byte to Close valve **/
+              #define ValveOpen  0x08   /** | byte to open valve **/
+              #define NoValve   ~0x0c   /** & byte to disable  valve control **/
+              #define ON         100
+              #define OFF          0
+              #define ClosePos    10     /** minimum value for valve closure  */
+              
+              #define XRAM 0xffff
+              
+              struct Clock
+C51 COMPILER V3.40,  NBORE                                                                 03/04/97  18:25:42  PAGE 2   
+
+                {
+                int sec;
+                int hour;
+                int min;
+                int day;
+                int month;
+                int  year;
+                };
+              
+              struct mrec          /** measured record **/
+                {
+                int hour;
+                int min;
+                char Ip;
+                int avlevel[8];
+                float flow;
+                float Tflow;
+                };
+              
+              /** **************************************************************** **/
+              /**                                                                  **/
+              /**   Global definitions                                             **/
+              /**                                                                  **/
+              /** **************************************************************** **/
+              
+              char xdata CR _at_ 0x000b;
+              char xdata IP _at_ 0x0009;
+              char xdata OP _at_ 0x0008;
+              
+              char bdata DigoutGB, TGB;
+              static char bdata ModeGC;
+              static int   xdata  SecGI, mSecGI,PhaseCountGI, LowlevelGI;
+              static int   xdata TGI=0;
+              int   bdata  CycleGI=0, LoopsGI,CounterGI, LoopiesGI=0, ValvectGI;
+              
+              int   xdata  AdcGI, LdispGI=0, LdispindGI=0, FlowTestGI=0;
+              int   xdata  LevelGI, LevelMGI;
+              float xdata  FlowSetPointGF, MaksFlowSetPointGF;
+              float xdata  FlowGF, TFlowGF;
+              
+              char  xdata  TxBufGCA[251],RxBufGCA[251], TirqGCA[100];
+              char  xdata  AdcMinGIA[8]= { 5,5,5,5,5,5,5,5};
+              float  xdata  ADCconv[] = { 25,100,1000, 0, 0, 0, 0, 0};
+              float xdata  ADCmaks[] = { 250,250,250,250,250,250,250,250};
+              char  xdata  *KarC;
+              float xdata  Tf1,TF2,TF3, TGF;
+              unsigned int xdata TI1, TI2,TI3;
+              
+              xdata struct mrec MrecGS[60*24*DAYS];
+              xdata struct Clock CurrentTimeSG;
+              
+              void Putchar (char Karakter)
+                {
+              /** wait for tx buf to clear  **/
+              
+                while (!TI);
+                S0BUF = Karakter; /* output CR  */
+                while (!TI);
+                TI=0;
+                }
+              
+              #ifdef PIA
+              InitPIA()
+                {
+                P1 &= ~2;      /** select i/o device **/
+                CR = 0x82;    /** set 8255 port A = o/p Portb b = i/p **/
+C51 COMPILER V3.40,  NBORE                                                                 03/04/97  18:25:42  PAGE 3   
+
+                OP = 0;
+                P1 |= 2;    /** de select i/o device **/
+                }
+              #endif
+ 122          
+ 123          void Puts ( )
+ 124            {
+ 125            char *KarC;
+ 126          
+ 127            KarC = &TxBufGCA;
+ 128            P1 &= 0xef;         /** set 5 bit enable TX**/
+ 129            do
+ 130              {
+ 131              Putchar(*KarC);
+ 132              }while( *KarC++ != '~');
+ 133            P1 |= 0x10;         /** clear 5 bit disable TX**/
+ 134            }
+ 135          
+ 136          void Display ( )
+ 137           {
+ 138           LdispindGI=1;      /** stop re-entry  **/
+ 139           memset( TxBufGCA, 0, sizeof( TxBufGCA));
+ 140           TI1   = (int) MrecGS[LoopsGI].avlevel[0];
+ 141           TGF   = (float) ( TI1 - AdcMinGIA[0]);
+ 142           Tf1   = TGF / 250;
+ 143           Tf1   = Tf1 * 25;
+ 144          
+ 145           TI2   = (int) MrecGS[LoopsGI].avlevel[1];
+ 146           TGF   = (float) ( TI1 - AdcMinGIA[1]);
+ 147           TF2   = TGF / 250;
+ 148           TF2   = TF2 * 100;
+ 149          
+ 150           TI3   = (int) MrecGS[LoopsGI].avlevel[2];
+ 151           TGF   = (float) ( TI3 - AdcMinGIA[2]);
+ 152           TF3   = TGF / 250;
+ 153           TF3   = TF3 * 1000;
+ 154          
+ 155           sprintf( TxBufGCA ,"  ^0Fl %2.0fLs Lev %4.1f M   \r", MrecGS[LoopsGI].flow, Tf1);
+ 156           sprintf( TirqGCA, "VP %3.0fp %4.0f Kpa  ~", TF2, TF3  );
+ 157           strcat ( TxBufGCA, TirqGCA);
+ 158           Puts();
+ 159          
+ 160           }
+ 161          
+ 162          /** Send end of command Line !!! **/
+ 163          void Endofcommand()
+ 164            {
+ 165            memset( TxBufGCA,0,sizeof(TxBufGCA));
+ 166            strcpy ( TxBufGCA, "UUUUU!&~");
+ 167            Puts();
+ 168            }
+ 169          
+ 170          void Nocommand()
+ 171            {
+ 172            memset( TxBufGCA,0,sizeof(TxBufGCA));
+ 173            strcpy ( TxBufGCA, "UUUUU^&~");
+ 174            Puts();
+ 175            }
+ 176          
+ 177          
+ 178          /** Adc conversion routine **/
+ 179          
+ 180          int adconV ( unsigned char adcUC)
+ 181           {
+ 182          
+ 183           ADCON = 0;       /** strip previous ADC and Select SOFTW start**/
+C51 COMPILER V3.40,  NBORE                                                                 03/04/97  18:25:42  PAGE 4   
+
+ 184           ADCON = adcUC;   /** Select channel **/
+ 185           ADCON |=  0x8;   /** Start ADC **/
+ 186          /** Whait for ADC to end **/
+ 187           while ( (ADCON &0x10) != 0x10);
+ 188           return ( (int) ADCH);
+ 189           }
+ 190          
+ 191          /** Close the actuator  **/
+ 192          closeValve()
+ 193            {
+ 194            xdata int TempI, LoopsI;
+ 195          
+ 196            TempI = adconV(1);
+ 197            LoopsI = 50;
+ 198            if( TempI > 50)
+ 199              {
+ 200              do
+ 201                {
+ 202                DigoutGB |= ValveClose;
+ 203                TempI = adconV(1);
+ 204                if ( TempI  < 34)
+ 205          	LoopsI--;
+ 206                }while ( LoopsI !=0);
+ 207              DigoutGB &= NoValve;
+ 208              }
+ 209            }
+ 210          
+ 211          /** Open the actuator  **/
+ 212          
+ 213          openValve()
+ 214            {
+ 215          
+ 216            xdata int TempI;
+ 217          
+ 218            TempI = adconV(1);
+ 219            if( TempI < 220)
+ 220              {
+ 221              do
+ 222               {
+ 223               DigoutGB |= ValveOpen;
+ 224               } while ( adconV(1) < 230);
+ 225              DigoutGB &= NoValve;
+ 226              }
+ 227            }
+ 228          
+ 229          /** set controler clock **/
+ 230          settime(char *CharP)
+ 231            {
+ 232          
+ 233            CharP = strchr( CharP, ',');
+ 234            CharP++;
+ 235            CurrentTimeSG.hour = atoi ( CharP);
+ 236            CharP = strchr( CharP, ',');
+ 237            CharP++;
+ 238            CurrentTimeSG.min  = atoi ( CharP);
+ 239            CharP = strchr( CharP, ',');
+ 240            CharP++;
+ 241            CurrentTimeSG.sec  = atoi ( CharP);
+ 242            CharP = strchr( CharP, ',');
+ 243            CharP++;
+ 244            CurrentTimeSG.day  = atoi ( CharP);
+ 245            CharP = strchr( CharP, ',');
+ 246            CharP++;
+ 247            CurrentTimeSG.year = atoi ( CharP);
+ 248            }
+ 249          
+C51 COMPILER V3.40,  NBORE                                                                 03/04/97  18:25:42  PAGE 5   
+
+ 250          /** Irq to perf ADC I/O & controle **/
+ 251          timer2()  interrupt 14 using 1
+ 252            {
+ 253          
+ 254            PCON |= 0x10;    /** reset watch dog timer **/
+ 255            T3   =  153;
+ 256            P1 &= 0xfd;      /** select i/o device **/
+ 257            MrecGS[LoopsGI].Ip = IP;
+ 258            TGB = IP;
+ 259            P1 |= 2;
+ 260            if( AdcGI++ == 3)  /** Perform a compete ADC every  3 +/- 210 mS **/
+ 261              {
+ 262              MrecGS[LoopsGI].avlevel[0]= adconV( 0);
+ 263              MrecGS[LoopsGI].avlevel[1]= adconV( 1);
+ 264              MrecGS[LoopsGI].avlevel[2]= adconV( 2);
+ 265              MrecGS[LoopsGI].avlevel[3]= adconV( 3);
+ 266              MrecGS[LoopsGI].avlevel[4]= adconV( 4);
+ 267              MrecGS[LoopsGI].avlevel[5]= adconV( 5);
+ 268              MrecGS[LoopsGI].avlevel[6]= adconV( 6);
+ 269              MrecGS[LoopsGI].avlevel[7]= adconV( 7);
+ 270              AdcGI=0;
+ 271              }
+ 272          /**  controle vlave every 3 * 70 mSec **/
+ 273            if( ValvectGI++ > 0)  /** on period **/
+ 274              {
+ 275              DigoutGB &= ~ValveClose;
+ 276              DigoutGB &= ~ValveOpen;
+ 277              }
+ 278            if ( ModeGC == ON  )
+ 279              {
+ 280          /**  do the phase check **/
+ 281              if ( (MrecGS[LoopsGI].Ip  & 1) == 0)
+ 282                {
+ 283                if( PhaseCountGI != 0)
+ 284          	{
+ 285          	PhaseCountGI--;
+ 286          	} else
+ 287          	  DigoutGB &= ~PumpON;
+ 288                } else
+ 289          	{
+ 290          	if ( PhaseCountGI < 30)
+ 291          	  PhaseCountGI++;
+ 292          	if ( PhaseCountGI > 28)
+ 293          	   DigoutGB |= PumpON;
+ 294          	}
+ 295          /** check phase fault   **/
+ 296              if ( (TGB & 0x06) !=0)   /**  check the staus of borehole **/
+ 297              {
+ 298          /** check borehole level **/
+ 299              if (MrecGS[LoopsGI].avlevel[0] >  LevelGI)
+ 300                {
+ 301          /**  Inhibit Lowlevel loc-out clearance **/
+ 302                if ( LowlevelGI < 71)
+ 303          	LowlevelGI++;
+ 304          /** Valve control  **/
+ 305                if( ValvectGI > 20 )    /**  wait time for on 6 * 70 mSec **/
+ 306          	{
+ 307          	ValvectGI=0;
+ 308          	if (FlowGF >  (FlowSetPointGF+1))
+ 309          	  {
+ 310          	  if ( PhaseCountGI > 10)
+ 311          	    DigoutGB |=ValveClose;      /**   control valve close **/
+ 312          	  } else if (FlowGF <  (FlowSetPointGF-1))
+ 313          	     {
+ 314          	     if ( PhaseCountGI > 10)
+ 315          	       DigoutGB |=ValveOpen;    /**   control valve open **/
+C51 COMPILER V3.40,  NBORE                                                                 03/04/97  18:25:42  PAGE 6   
+
+ 316          	     } else
+ 317          	      {
+ 318          	      DigoutGB &= ~ValveClose;
+ 319          	      DigoutGB &= ~ValveOpen;
+ 320          	      }
+ 321          	}
+ 322          /** End of Valve control  **/
+ 323          
+ 324                } else if (MrecGS[LoopsGI].avlevel[0] <  LevelGI )
+ 325          	{
+ 326          	if (LowlevelGI-- ==0)
+ 327          	  DigoutGB |=  LockOut;  /** trip bore hole **/
+ 328          	DigoutGB &= ~PumpON;     /** switch pump on **/
+ 329          	DigoutGB &= ~ValveClose;
+ 330          	DigoutGB &= ~ValveOpen;
+ 331          	}
+ 332              } else
+ 333                {
+ 334          
+ 335                if ( MrecGS[LoopsGI].avlevel[0]  > ClosePos)  /** 30 digital units  */
+ 336          	DigoutGB |= ValveClose;    /**   close valve **/
+ 337          	else
+ 338          	{
+ 339          	DigoutGB &= ~ValveClose;
+ 340          	DigoutGB &= ~ValveOpen;
+ 341          	}
+ 342                DigoutGB &= ~PumpON;
+ 343                }
+ 344          
+ 345              }else
+ 346                {
+ 347          /** 30 digital units  **/
+ 348                if ( MrecGS[LoopsGI].avlevel[0]  > ClosePos)
+ 349          	DigoutGB |= ValveClose;
+ 350          /**   close valve **/
+ 351                DigoutGB &=  ~PumpON;       /**  switch pump off **/
+ 352                }
+ 353          
+ 354          /**  treat time  **/
+ 355            if( mSecGI++ == 13)  /** 13 samples +/- 1 second **/
+ 356              {
+ 357              FlowGF   = (float) TL0;
+ 358              TFlowGF += (float) TL0;
+ 359              TL0=0;
+ 360              MrecGS[LoopsGI].min  = CurrentTimeSG.min;
+ 361              MrecGS[LoopsGI].hour =  CurrentTimeSG.hour;
+ 362              mSecGI = 0;
+ 363          
+ 364              if( ++CurrentTimeSG.sec >59)
+ 365                {
+ 366                if (  LoopsGI++ > DAYS*60*24)
+ 367          	 LoopsGI=0;
+ 368                MrecGS[LoopsGI].avlevel[0]= adconV( 0);
+ 369                MrecGS[LoopsGI].avlevel[1]= adconV( 1);
+ 370                MrecGS[LoopsGI].avlevel[2]= adconV( 2);
+ 371                MrecGS[LoopsGI].flow  = FlowGF;
+ 372                MrecGS[LoopsGI].Tflow = TFlowGF;
+ 373                CurrentTimeSG.sec=0;
+ 374                if ( PhaseCountGI < 2 )
+ 375          	PhaseCountGI++;
+ 376                if( ++CurrentTimeSG.min >59)
+ 377          	{
+ 378          	if ( DigoutGB & 1 == 0)
+ 379          	  DigoutGB &= ~LockOut;    /** reset bore hole **/
+ 380          	CurrentTimeSG.min=0;
+ 381          	CurrentTimeSG.hour++;
+C51 COMPILER V3.40,  NBORE                                                                 03/04/97  18:25:42  PAGE 7   
+
+ 382          	if( CurrentTimeSG.hour > 23)
+ 383          	  {
+ 384          	  CurrentTimeSG.hour=0;
+ 385          	  CurrentTimeSG.day++;
+ 386          	  }
+ 387          	}
+ 388                }
+ 389              MrecGS[LoopsGI].min        = CurrentTimeSG.min;
+ 390              MrecGS[LoopsGI].hour       = CurrentTimeSG.hour;
+ 391              MrecGS[LoopsGI].avlevel[0] = adconV( 0);
+ 392              MrecGS[LoopsGI].avlevel[1] = adconV( 1);
+ 393              MrecGS[LoopsGI].avlevel[2] = adconV( 2);
+ 394              MrecGS[LoopsGI].flow       = FlowGF;
+ 395              MrecGS[LoopsGI].Tflow      = TFlowGF;
+ 396              }  /** end of time  **/
+ 397          
+ 398            if(ModeGC == OFF  )
+ 399              {
+ 400               DigoutGB &= PumpOFF;  /*  switch pump off **/
+ 401              if ( MrecGS[LoopsGI].avlevel[2] >  50)
+ 402                DigoutGB |= ValveClose; /** close valve **/
+ 403              }
+ 404          
+ 405            switch ( TGI)
+ 406              {
+ 407              case 1:
+ 408                DigoutGB |= 0x80;
+ 409              break;
+ 410              case 2:
+ 411                DigoutGB &= ~0x80;
+ 412              default :
+ 413          	 TGI =0;
+ 414              }
+ 415            TGI++;
+ 416          
+ 417            P1 &= 0xfd;     /** select I/O  **/
+ 418            OP = DigoutGB;  /** set    I/O  **/
+ 419            P1 |= 2;
+ 420            T20V =0;
+ 421            P1 &= ~0x80;
+ 422            }
+ 423          
+ 424          /** Get 1 cahr from comms port **/
+ 425          
+ 426          char Getchar()
+ 427            {
+ 428            xdata char c;
+ 429          
+ 430          bdata int CounterI=0;
+ 431          
+ 432          /*
+ 433            do
+ 434              {
+ 435              if( CounterI ++ > 1000)
+ 436                {
+ 437                CounterI =0;
+ 438                }
+ 439              }
+ 440          */
+ 441            while(! RI);
+ 442            c= S0BUF;
+ 443            RI=0;
+ 444            return ( c);
+ 445            }
+ 446          
+ 447          main()
+C51 COMPILER V3.40,  NBORE                                                                 03/04/97  18:25:42  PAGE 8   
+
+ 448            {
+ 449          
+ 450            int  xdata posI, CounterI,LoopsI;
+ 451            float xdata TF;
+ 452            char xdata CounterC=0, *CharP, AdcC, TP[40], TC;
+ 453            unsigned char xdata LowUC, HighUC;
+ 454          
+ 455          #ifdef PIA
+                InitPIA();
+              #endif
+ 458          
+ 459            ValvectGI =0;
+ 460            LowlevelGI=71;
+ 461            TGI=0;
+ 462          
+ 463            TMOD  = 0x25;  /** 0x25 **/
+ 464            /** start of serial port init **/
+ 465            S0CON = 0x5A;  /** init mode 1 uart 7 bit E 1 stop  Enable RX**/
+ 466            TH1   = 250;
+ 467            TR1   =   1;   /** Start Timer 1 **/
+ 468            /** end of serial port init **/
+ 469          
+ 470            TM2CON = 0x81;  /** init timer2 16 bit ovrf, c/8Fosc/12**/
+ 471          
+ 472            ET2    = 1;
+ 473            IP1 = 0x80;
+ 474          
+ 475            DigoutGB=0;
+ 476            P1  = 0x10;       /** Force RAM select ! serial **/
+ 477            TH0 = 0;          /** set counter High value **/
+ 478            TL0 = 0;          /** set counter low  value **/
+ 479            TR0 = 1;          /** Start Timer 0 **/
+ 480            PhaseCountGI=30;
+ 481            TFlowGF = 0;
+ 482            FlowGF=0;
+ 483            FlowSetPointGF     = Flows;
+ 484            MaksFlowSetPointGF = MaksFlow;
+ 485            AdcGI=0;
+ 486            mSecGI  = 0;
+ 487            SecGI   = 0;
+ 488            LoopsGI = 0;
+ 489            CurrentTimeSG.sec  =0;
+ 490            CurrentTimeSG.hour =0;
+ 491            CurrentTimeSG.min  =0;
+ 492            CurrentTimeSG.day  =17;
+ 493            CurrentTimeSG.month=03;
+ 494            CurrentTimeSG.year =95;
+ 495            LevelGI  = 0x30;
+ 496            LevelMGI = 0x50;
+ 497            ModeGC   = ON;
+ 498            EA       = TRUE;
+ 499          
+ 500          /*  PCON |= 0x10;
+ 501            ** start dead man timer
+ 502            T3   =  153;
+ 503          */
+ 504            MrecGS[LoopsGI].min  = CurrentTimeSG.min;
+ 505            MrecGS[LoopsGI].hour =  CurrentTimeSG.hour;
+ 506            MrecGS[LoopsGI].avlevel[0]= adconV( 0);
+ 507            MrecGS[LoopsGI].avlevel[1]= adconV( 1);
+ 508            MrecGS[LoopsGI].avlevel[2]= adconV( 2);
+ 509            MrecGS[LoopsGI].flow = FlowGF;
+ 510            MrecGS[LoopsGI].Tflow = TFlowGF;
+ 511          for(;;)
+ 512            {
+ 513          	      sprintf( TxBufGCA ,"UUUU,%s:%d,%d:", STATION,\
+C51 COMPILER V3.40,  NBORE                                                                 03/04/97  18:25:42  PAGE 9   
+
+ 514          		 (int)MrecGS[LoopsI].hour,\
+ 515          		 (int)MrecGS[LoopsI].min);
+ 516          	      sprintf(
+ 517          	       &TP, "%d,%d,%d,%d,%d,%d,%d,%d,",\
+ 518          		 MrecGS[LoopsI].avlevel[0],\
+ 519          		 MrecGS[LoopsI].avlevel[1],\
+ 520          		 MrecGS[LoopsI].avlevel[2],\
+ 521          		 MrecGS[LoopsI].avlevel[3],\
+ 522          		 MrecGS[LoopsI].avlevel[4],\
+ 523          		 MrecGS[LoopsI].avlevel[5],\
+ 524          		 MrecGS[LoopsI].avlevel[6],\
+ 525          		 MrecGS[LoopsI].avlevel[7]
+ 526          	      );
+ 527          	      strcat( TxBufGCA, TP);
+ 528          	      memset ( TP, 0 , sizeof ( TP));
+ 529          	      sprintf( &TP, "%d,", (int) MrecGS[LoopsGI].Ip);
+ 530          	      strcat( TxBufGCA, TP);
+ 531          	      memset ( TP, 0 , sizeof ( TP));
+ 532          	      sprintf( &TP, "%.0f,", MrecGS[LoopsGI].flow);
+ 533          	      strcat( TxBufGCA, TP);
+ 534          	      memset ( TP, 0 , sizeof ( TP));
+ 535          	      sprintf( &TP, "%.0f&\r~", MrecGS[LoopsGI].Tflow);
+ 536          	      strcat( TxBufGCA, TP);
+ 537          	      Puts();
+ 538            }
+ 539            for(;;)
+ 540              {
+ 541          
+ 542          
+ 543              /** COMS INTERFACE **
+ 544              }         /** end of for(;;)  **/
+ 545            }           /** end of main **/
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  8 ERROR(S)

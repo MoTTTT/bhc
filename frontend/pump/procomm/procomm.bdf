@@ -1,0 +1,131 @@
+PROGRAM    "PROCOMM"
+
+MENU MAIN
+     OPTION    DIAL ,"Dialing Functions "
+          EXECUTE DIAL
+     OPTION TRANSMIT ,"Upload/Download Functions " 
+          EXECUTE TRANSMIT
+     OPTION FILE ,"File Maintenance Functions "
+          EXECUTE FILE
+     OPTION MODE ,"Change ProComm mode "
+          EXECUTE MODE
+     OPTION UTILITY ,"Utility Functions "
+          EXECUTE UTILITY
+     OPTION GATEWAY ,"Shell to DOS "
+          TYPE "{A}{F4}"
+     OPTION HELP ,"ProComm Help "
+          TYPE "{A}{F10}"
+     OPTION QUIT ,"Leave Slashbar 1.1 "
+          EXECUTE QUIT
+MEND
+
+MENU DIAL
+     OPTION       DIAL-DIRECTORY,"ProComm Dial Directory "
+           TYPE "{A}D"
+     OPTION       RE-DIAL,"Re-dial last phone number(s) "
+           TYPE "{A}R"
+     OPTION       COMMAND-FILE-MENU,"Execute .cmd file "
+           TYPE "{A}{F5}"
+MEND
+
+MENU UTILITY
+     OPTION       SETUP,"Configure ProComm Parameters "
+           EXECUTE SETUP
+     OPTION       COLOR,"Setup Screen Colors "
+           TYPE "{A}Z"
+     OPTION       MACRO,"Keyboard Macros "
+           TYPE "{A}M"
+     OPTION       DIRECTORY-CHANGE,"Change default ProComm directory "      
+           TYPE "{A}B"
+     OPTION       ELAPSED-TIME,"View elapsed time "
+           TYPE "{A}T"
+     OPTION       OTHER,"Other miscell. utilities "
+          EXECUTE OTHER
+MEND
+
+MENU MODE
+     OPTION        HOST,"Enter Host mode "
+          TYPE "{A}Q"
+     OPTION        CHAT,"Enter Chat mode "      
+          TYPE "{A}O"
+MEND
+
+MENU TRANSMIT
+     OPTION       UPLOAD,"Upload a File "
+           EXECUTE UPLOAD
+     OPTION       DOWNLOAD,"Download a File "
+           EXECUTE DOWNLOAD
+MEND
+
+MENU UPLOAD
+     OPTION      YMODEM,"Upload using YMODEM protocol "
+           TYPE "{PGUP}"
+           TYPE "5"
+     OPTION      XMODEM,"Upload using XMODEM protocol "
+           TYPE "{PGUP}"
+           TYPE "1"
+     OPTION      ASCII,"Upload using ASCII protocol "
+           TYPE "{PGUP}"
+           TYPE "7"
+     OPTION      MODEM7,"Upload using MODEM7 protocol "
+           TYPE "{PGUP}"
+           TYPE "4"
+MEND
+
+MENU DOWNLOAD
+     OPTION      YMODEM,"Download using YMODEM "
+           TYPE "{PGDN}"
+           TYPE "5"
+     OPTION      XMODEM,"Download using XMODEM "
+           TYPE "{PGDN}"
+           TYPE "1"
+     OPTION      ASCII,"Download using ASCII protocol "
+           TYPE "{PGDN}"
+           TYPE "7"
+     OPTION      MODEM7,"Download using MODEM7 protocol "
+           TYPE "{PGDN}"
+           TYPE "4"
+MEND
+           
+MENU FILE
+     OPTION VIEW,"View a DOS File "
+          TYPE "{A}V"
+     OPTION EDIT,"Edit a DOS File "
+          TYPE "{A}A"
+     OPTION DIR,"Display DOS Directory "
+          TYPE "{A}F"
+MEND
+
+MENU SETUP
+     OPTION CONFIGURE,"Setup screen "
+          TYPE "{A}S"
+     OPTION PARAMETERS,"Line Parameters "
+          TYPE "{A}P"
+MEND          
+
+MENU QUIT
+     OPTION       YES,"Exit ProComm "
+           TYPE "{A}X"
+           TYPE "Y"
+     OPTION       NO,"Return to ProComm "     
+           CR
+MEND
+
+MENU OTHER
+
+     OPTION       CLEAR-SCREEN,"Clear screen and cursor home "
+           TYPE "{A}C"
+     OPTION       REDISPLAY-SCREEN,"Redisplay previous screens "
+           TYPE "{A}{F6}"
+     OPTION       DUMP-SCREEN,"Save current ProComm screen in file "  
+           TYPE "{A}G"
+MEND
+
+END
+
+
+
+
+
+
+

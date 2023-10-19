@@ -1,0 +1,155 @@
+/*			Copyright Q Solutions				*/
+/*	File:		hardware.txt					*/
+/*	Programmer:	Martin Colley (MoT)				*/
+/*	Project:	Borehole Controller				*/
+/*	Modules:	Main CPU, Analog, and Digital Cards		*/
+/*	Description:	Hardware test and porting report, and		*/
+/*			Programmers Notes for the Infotrans Cards	*/
+/*									*/
+CPU Card
+	Mechanical:
+		Test:	Program and check functionality
+			Card not working at times for long periods.
+			Sensitive to movement.
+			Short/Disconnection suspected.
+			Correct funct. restored during address bus probe
+				Broken IC socket pin on 80c552
+				Repaired (temorary)
+				Card working more reliably.
+		QFix:	Pressing on 573 restores correct functionality.
+		Debug:	Visual inspection
+			Card dirty (solder flux residual)
+				Card cleaned with solvent
+				Less intermittent failure.
+		Problems persist.
+		Fix:	Install 74139. Also fixes RAM problems.
+		Test Complete OK.
+	EPROM (Emulated):
+		Test:	Lower 32K block.
+			Lower 32K Program memmory working. (ie 9370 byte
+			executable, located in data space from
+			location 0x00, functions correctly)
+		Testing Complete OK.
+	RAM:
+		Test:	Lower 32K block.
+			XDATA located at 0x0000 does not work as designed
+				Same result when control engine etc disabled.
+			XDATA located from 0x0200 up works correctly
+		Test Failed.
+			Reason for incorrect opperation not determined.
+			Further testing with XDATA located from 0x0200
+		Fix:	U20 Installed.( Banked RAM chip selection.)
+			XDATA located at 0x0000 works correctly.
+		Testing complete, fixed.
+	I2C bus
+		Test:	Connect to remote LcdPad
+			Blown Hardware detected, repaired.
+			Long I2C bus cable causing unreliable communication.
+			Reliable I2C bus communication with the LcdPad
+			achieved for short (~1m) cable lengths.
+		Testing Complete, fixed.
+	Analog to Digital Conversion
+		Test:	Analog channels 0, 1, and 2, and Vref
+			Vref at ~2V.
+			Vref at ~3.5V after 12V rail fixed. (Glen)
+			Vref measuring ~5V on occasion
+			Emulated signal measurable on controller pins.
+			ADC reading 0xFF (or 0x00 at startup).
+				80C552 ADC port blown?
+			Try fresh microcontroller? No Change
+			Analog card settings changed
+			Readings working only on channels 0, 1
+				No signal at channel 2
+				Channel 2 assigned to Pressure.
+				No fualt detection/ repair.
+			ADC readings erratic at times.
+		Test Failed, but sub-system usable.
+	RS232 bus
+		Test:	Sending data at 19200
+			Data received on terminal emulator
+		Testing Complete.
+	Timers
+		Test:	Sending pulses to TIMER0A..B ie T0
+			No connection from J14 to T0 (pin 28 on U25)
+			No pin evident on solder side of card.
+			Using TIMER1A..B to T1
+		Test failed, but sub-system usable.
+Analog Card
+	Mechanical:	Card difficult to insert into casing.
+	Settings:	Card Addressed using CS1 (ie jumper J01 on)
+			Low order address 0x?F
+			With analog select, address is 0xF02F
+	Usage:		Enable analog output to controller by writing 
+				enable mask to XDATA 0xF02F
+				(ie write 0xFF at startup)
+	Test:		Analog output switched succesfully.
+			Analog voltage measured at microcontroller,
+				varying with emulator setting.
+	Testing Complete.
+	Card stripped:	14 ICs removed, only U06..U09 remain.
+			Links inserted in IC socket U20 1-2,3-4,8-9
+Digital Card
+	Mechanical:	Leads too long (solder side): Leads clipped
+			R16 not solder both sides (Din8+)
+	Settings:	Card addressed using CS2 (ie jumper J02 on)
+			Low order address 0x?F (ie jumper J09..J012 off)
+	Output Usage:	Write control output (one byte) to XDATA 0xF20F
+	Input Usage:	Read data (one byte) from XDATA 0xF20F
+	Output Test:	Relays switching on power up
+			Relays switching (audio inspection) on writing to latch
+			Emulator led's not following relay setting
+		Debug:	Card not working in first slot
+			Card not working in absence of ADC card
+			Need extender board to debug Digital card
+			Extender Card inserted
+			TP03 (12V rail) measures 3.06V: Extender board loss?
+			Check relay pinouts.
+			12V power rail missing.
+			15V regulator used to replace 12V regulator on PSU
+			Output switching detected on simulator LEDs
+	Input Test:	Reading byte from digital input latch.
+			Bit 2 and 7 shorted, simulator?
+	Test Failed, but sub-system usable.
+Housing
+	Test:	Mechanical Usability ( Software Development )
+		Cards sticking on insertion/removal
+		No cover
+		Shorting to solder side leads on bottom card
+			Leads too long
+			Leads clipped.
+			Solved.
+		Shorting to top card solder side leads
+			No top cover: top card has no slot
+			Foam and paper insulators used.
+			Solved.
+	Test:	Measure potential 
+		Chassis Voltage level intermittently floating, 5V etc
+			sensitive to simulator connection and 
+			physical movement
+		Housing not grounded
+			PSU not assembled into housing
+			Glen: Regulators will be bolted to the chassis
+	Test Failed, but sub-system repaired/ usable.
+PSU
+	Emulator used as supplied, on 20V rail.
+		Fuse blows on connection of digital emulator
+		Replace fuse
+		Connect emulator to 5V rail
+	Controller unit used as supplied, on 24V rail
+		12V regulator blown
+		12V Regulator replaced with 15V (Glen)
+		Regulator still overheating
+		Controller unit moved to 24V rail (Glen)
+	Testing Complete.
+Emulator
+	Pannel mount connection method unstable, freeing connectors.
+		Wiring breakages at solder joints - resoldered
+	No Documentation.
+	Timer wired to I2C bus on CON01.
+		Timer disconnected
+		80C552 blown, replaced
+		RTC blown, removed
+		Replacement Oscillator assembled on solderless breadboard
+	LEDs default to on when connected, 4th LED off: Jumper setting.
+	Switching relays not changing LED output: Fixed.
+	Test Failed, but sub-system usable.

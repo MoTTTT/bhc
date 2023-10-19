@@ -1,0 +1,326 @@
+A51 MACRO ASSEMBLER  IICDRIV                                                                23/07/97 19:02:26 PAGE     1
+
+
+DOS MACRO ASSEMBLER A51 V5.10
+OBJECT MODULE PLACED IN IICDRIV.OBJ
+ASSEMBLER INVOKED BY: D:\C51\BIN\A51.EXE IICDRIV.A51
+
+LOC  OBJ            LINE     SOURCE
+
+                       1     ;-----------------------------------------------------------------------;
+                       2     ;                       Copyright Q Solutions                           ;
+                       3     ;       File:           iic.a51                                         ;
+                       4     ;       Programmer:     MoT                                             ;
+                       5     ;       Module:         IIC Bus Low level assembler routine             ;
+                       6     ;                                                                       ;
+                       7     ;                       History                                         ;
+                       8     ; 19:14 12/04/1997      Cleanup                                         ;
+                       9     ; 19:06 16/04/1997      Completed data descriptions                     ;
+                      10     ; To Do: Complete and test general call handler                         ;
+                      11     ;-----------------------------------------------------------------------;
+                      12     
+                      13     PUBLIC  _iic_init               ; Initialise IIC bus
+                      14     PUBLIC  _iic_mstart             ; Start a master transmission
+                      15     PUBLIC  _iic_sset               ; Prepare for a slave reception
+                      16     PUBLIC  iic_mready              ; Master transmit buffer empty flag
+                      17     PUBLIC  iic_sready              ; Slave receive buffer full
+                      18     
+                      19     ;-------------------IIC SFR's--------------------------------------------;
+  00D8                20     S1CON           data    0D8H    ; Control
+  00D9                21     S1STA           data    0D9H    ; Status
+  00DA                22     S1DAT           data    0DAH    ; Data
+  00DB                23     S1ADR           data    0DBH    ; Own slave Address
+  00A8                24     IEN0            data    0A8H    ; Interrupt enable
+  00DD                25     STA             bit     0DDH    ; Start flag of S1CON
+  00BD                26     SIO1HP          bit     0BDH    ; IIC interrupt priority
+                      27     
+                      28     ;-------------------GENERAL CONSTANTS------------------------------------;
+  00A0                29     ENSIO1          EQU     0A0H    ; Enable IIC mask for IEN0
+  0001                30     PAG1            EQU     001H    ; Page Address = 1
+  0018                31     SELRB3          EQU     018H    ; Select register bank 3 mask for PSW
+                      32     
+                      33     ;-------------------CONTROL SETTINGS FOR IIC BUS (S1CON)-----------------;
+  00D5                34     NA_O_NI_A       EQU     0D5H    ; No start; Stop; No int; Acknowledge
+  00C5                35     NA_NO_NI_A      EQU     0C5H    ; No start; No Stop; No int; Acknowledge
+  00C1                36     NA_NO_NI_NA     EQU     0C1H    ; No start; No Stop; No int; No Acknowledge
+  00E5                37     A_NO_NI_A       EQU     0E5H    ; Start; No Stop; No int; Acknowledge
+                      38     
+                      39     ;-------------------DATA SEGMENTS----------------------------------------;
+                      40     IICDATA SEGMENT DATA
+----                  41             RSEG    IICDATA
+0000                  42     SD:             DS      1               ; Slave Data pointer
+0001                  43     MD:             DS      1               ; Master Data pointer
+0002                  44     SLEN:           DS      1               ; ?
+0003                  45     BACKUP:         DS      1               ; Scratch for storing counters
+0004                  46     NUMBYTMST:      DS      1               ; Master bytes to be sent
+0005                  47     NUMBYTSLA:      DS      1               ; Slave bytes expected
+0006                  48     SLA:            DS      1               ; Slave Address
+0007                  49     HADD:           DS      1               ; Page Address
+----                  50             BSEG
+0000                  51     iic_sready:     DBIT    1               ; Slave reception flag
+0001                  52     iic_mready:     DBIT    1               ; Master rx/tx complete
+                      53     
+                      54     ;----------------------------Public Routines-----------------------------;
+                      55     IICCODE SEGMENT CODE
+----                  56             RSEG    IICCODE
+                      57             USING   0
+0000                  58     _iic_init:                              ; INITIALIZATION ROUTINE
+A51 MACRO ASSEMBLER  IICDRIV                                                                23/07/97 19:02:26 PAGE     2
+
+0000 8FDB             59             MOV     S1ADR,  R7              ; Set slave address parameter
+0002 D296             60             SETB    P1.6                    ; Port 1.6, 1.7 must be set for 
+0004 D297             61             SETB    P1.7                    ;     IýC bus communication
+0006 750001   F       62             MOV     HADD,   #PAG1           ; Use Page 1
+0009 43A8A0           63             ORL     IEN0,   #ENSIO1         ; Enable SIO1 interrupt
+000C C2BD             64             CLR     SIO1HP                  ; SIO1 to low piority
+000E 75D8C5           65             MOV     S1CON,  #NA_NO_NI_A     ; No_Start, No_Stop, No_Serial-Int
+0011 22               66             RET                             ;     Return Ack @ 100Khz Bit Rate
+0012                  67     _iic_sset:                              ; SET UP SLAVE RECEIVER
+0012 8F00     F       68             MOV     SD,     R7              ; Set buffer pointer parameter
+0014 8D00     F       69             MOV     NUMBYTSLA,R5            ; Set recieve counter parameter
+0016 C200             70             CLR     iic_sready              ; Clear ready flag
+0018 22               71             RET
+0019                  72     _iic_mstart:                            ; SET UP MASTER TX/RX
+0019 8D00     F       73             MOV     NUMBYTMST,R5            ; Set buffer length from param
+001B 8F00     F       74             MOV     SLA,    R7              ; Set destination address from param
+001D 8B00     F       75             MOV     MD,     R3              ; Set buffer pointer from param
+001F D2DD             76             SETB    STA                     ; Generate Start
+0021 C201             77             CLR     iic_mready              ; Clear ready flag
+0023 22               78             RET
+                      79     
+                      80     ;--------------------SIO1 INTERRUPT ROUTINE------------------------------;
+----                  81     CSEG    AT      002BH                   ; IIC interrupt vector
+002B C0D0             82             PUSH    PSW                     ; Prepare
+002D C0D9             83             PUSH    S1STA                   ; Push IIC status vector
+002F C000     F       84             PUSH    HADD                    ; Push page address
+0031 22               85             RET                             ; Execute from address on stack
+                      86     ;--------------------STATE VECTORS---------------------------------------;
+----                  87     CSEG    AT      0100H                   ; STATE 00, Bus Error
+0100 75D8D5           88             MOV     S1CON,  #NA_O_NI_A      ; Generate Stop
+0103 D0D0             89             POP     PSW
+0105 32               90             RETI
+                      91     ;--------------------MASTER ROUTINES-------------------------------------;
+----                  92     CSEG    AT      0108H                   ; STATE 08, Start condition Tx
+0108 8500DA   F       93             MOV     S1DAT,  SLA
+010B 75D8C5           94             MOV     S1CON,  #NA_NO_NI_A     ;
+010E 01A0             95             AJMP    INITBASE1               ; Initialise addresses
+----                  96     CSEG    AT      0110H                   ; STATE 10, Repeat start cond Tx
+0110 8500DA   F       97             MOV     S1DAT,  SLA             ; Send slave address
+0113 75D8C5           98             MOV     S1CON,  #NA_NO_NI_A     ;
+0116 01A0             99             AJMP    INITBASE1               ; Initialise addresses
+----                 100     CSEG    AT      0118H                   ; STATE 18, ACK recieved
+0118 75D018          101             MOV     PSW,    #SELRB3         ; Select register bank
+011B 87DA            102             MOV     S1DAT,  @R1             ; Copy data into send register
+011D 01B5            103             AJMP    CON                     ; Continue
+----                 104     CSEG    AT      0120H                   ; STATE 20, NACK recieved
+0120 75D8D5          105             MOV     S1CON,  #NA_O_NI_A      ; Generate stop
+0123 D0D0            106             POP     PSW
+0125 32              107             RETI
+----                 108     CSEG    AT      0128H                   ; STATE 28, DATA Tx, ACK Rx
+0128 D50085   F      109             DJNZ    NUMBYTMST,NOTLDAT1      ; Check for empty buffer
+012B 75D8D5          110             MOV     S1CON,  #NA_O_NI_A      ; Generate Stop
+012E 0190            111             AJMP    T_MREADY                ; Transmision complete
+----                 112     CSEG    AT      0130H                   ; STATE 30, DATA Tx, NACK Rx
+0130 75D8D5          113             MOV     S1CON,  #NA_O_NI_A      ; Generate Stop
+0133 D0D0            114             POP     PSW
+0135 32              115             RETI
+----                 116     CSEG    AT      0138H                   ; STATE 38, Arbitration lost
+0138 75D8E5          117             MOV     S1CON,  #A_NO_NI_A      ; Start again
+013B 850000   F      118             MOV     NUMBYTMST,BACKUP        ; Restore buffer length
+013E 01B9            119             AJMP    RETmt
+----                 120     CSEG    AT      0140H                   ; STATE 40, SLA+R Tx, ACK Rx
+0140 75D8C5          121             MOV     S1CON,  #NA_NO_NI_A     ; Acknowledge requested data
+0143 01CC            122             AJMP    RETmr
+----                 123     CSEG    AT      0148H                   ; STATE 48, SLA+R Tx, NACK Rx
+0148 75D8D5          124             MOV     S1CON,  #NA_O_NI_A      ; Generate Stop
+A51 MACRO ASSEMBLER  IICDRIV                                                                23/07/97 19:02:26 PAGE     3
+
+014B D0D0            125             POP     PSW
+014D 32              126             RETI
+----                 127     CSEG    AT      0150H                   ; STATE 50, DATA Rx, ACK Tx
+0150 75D018          128             MOV     PSW,    #SELRB3
+0153 A6DA            129             MOV     @R0,    S1DAT           ; Copy data into buffer
+0155 01C0            130             AJMP    REC1                    ; Master receiver routine
+----                 131     CSEG    AT      0158H                   ; STATE 58, DATA Rx, NACK Tx
+0158 75D8D5          132             MOV     S1CON,  #NA_O_NI_A      ; Generate Stop
+015B D201            133             SETB    iic_mready
+015D D0D0            134             POP     PSW
+015F 32              135             RETI
+                     136     ;--------------------SLAVE ROUTINES--------------------------------------;
+----                 137     CSEG    AT      0160H                   ; STATE 60, OWN SLA+R/W Rx, ACK Tx
+0160 75D8C5          138             MOV     S1CON,  #NA_NO_NI_A
+0163 75D018          139             MOV     PSW,    #SELRB3
+0166 01D0            140             AJMP    INITSRD                 ; Initialise slave read
+----                 141     CSEG    AT      0168H           ; 68 ARB LOST S+R/W (MST) OWN SLAVE Rx
+0168 75D8E5          142             MOV     S1CON,  #A_NO_NI_A      ; Generate start
+016B 75D018          143             MOV     PSW,    #SELRB3
+016E 01D0            144             AJMP    INITSRD                 ; Initialise Slave read
+                     145     ;CSEG   AT      0170H                   ; STATE 70, GEN CALL Rx, Rx DATA
+                     146     ;       MOV     S1CON,  #NA_NO_NI_A     ; Acknowledge
+                     147     ;       MOV     PSW,    #SELRB3
+                     148     ;       AJMP    INITSRD                 ; Initialise slave read
+                     149     ;CSEG   AT      0178H           ; 78 ARB LOST SLA&R/W (MST), GEN CALL Rx
+                     150     ;       MOV     S1CON,  #A_NO_NI_A
+                     151     ;       MOV     PSW,    #SELRB3
+                     152     ;       AJMP    INITSRD
+----                 153     CSEG    AT      0180H                   ; STATE 80, OWNSLA DATA Rx, Tx ACK
+0180 75D018          154             MOV     PSW,    #SELRB3
+0183 A6DA            155             MOV     @R0,    S1DAT           ; Copy data into buffer
+0185 01D8            156             AJMP    REC2                    ; Slave reciever routine
+----                 157     CSEG    AT      0188H                   ; STATE 88, OWNSLA DATA Rx, NACK Tx
+0188 75D8C5          158             MOV     S1CON,  #NA_NO_NI_A
+018B 01E5            159             AJMP    RETsr
+                     160     ;CSEG   AT      0190H                   ; STATE 90, GEN CALL DATA Rx, ACK Tx
+                     161     ;       MOV     @R0,    S1DAT           ; Save data
+                     162     ;       AJMP    LDAT                    ; !!! Missing routine
+                     163     ;CSEG   AT      0198H                   ; STATE 98, GEN CALL DATA Rx, NACK Tx
+                     164     ;       MOV     S1CON,  #NA_NO_NI_A
+                     165     ;       POP     PSW
+                     166     ;       RETI
+----                 167     CSEG    AT      01A0H                   ; STATE A0, STP OR RSTRT Rx
+01A0 75D8C5          168             MOV     S1CON,  #NA_NO_NI_A
+01A3 D0D0            169             POP     PSW
+01A5 32              170             RETI
+----                 171     CSEG    AT      01A8H                   ; STATE A8, OWN SLA+R Rx, ACK Tx
+01A8 01E8            172             AJMP    INITBASE2               ; Initialise Slave Transmitter 
+----                 173     CSEG    AT      01B0H   ; B0, ARB LOST SLA&R/W (MST), OWN SLA+R Rx ACK Tx
+01B0 01E8            174             AJMP    INITBASE2               ; Initialise Slave Transmitter 
+----                 175     CSEG    AT      01B8H                   ; STATE B8, DATA Tx ACK Rx
+01B8 75D018          176             MOV     PSW,    #SELRB3
+01BB 87DA            177             MOV     S1DAT,  @R1             ; Copy next data byte to buffer
+01BD 01F8            178             AJMP    CON2                    ; Slave transmitter routine
+----                 179     CSEG    AT      01C0H                   ; STATE C0, DATA Tx NACK Rx
+01C0 75D8C5          180             MOV     S1CON,  #NA_NO_NI_A
+01C3 D0D0            181             POP     PSW
+01C5 32              182             RETI
+----                 183     CSEG    AT      01C8H                   ; STATE C8, DATA Tx (AA=0) ACK Rx
+01C8 75D8C5          184             MOV     S1CON,  #NA_NO_NI_A
+01CB D0D0            185             POP     PSW
+01CD 32              186             RETI 
+                     187     
+----                 188     CSEG    AT      0090H
+                     189             USING   3
+0090                 190     T_MREADY:                               ; Shut down master: Sucess
+A51 MACRO ASSEMBLER  IICDRIV                                                                23/07/97 19:02:26 PAGE     4
+
+0090 D201            191             SETB    iic_mready              ; Set ready flag
+0092 0200B9          192             JMP     RETmt
+0095                 193     T_MREADYRX:                             ; Shut down master: Sucess
+0095 D201            194             SETB    iic_mready              ; Set ready flag
+0097 0200CC          195             JMP     RETmr
+----                 196     CSEG    AT      00A0H
+00A0                 197     INITBASE1:                              ; Initialise master transmitter
+00A0 75D018          198             MOV     PSW,    #SELRB3         ; Select register bank
+00A3 A800     F      199             MOV     R0,     MD              ; Set up data address
+00A5 A900     F      200             MOV     R1,     MD
+00A7 850000   F      201             MOV     BACKUP, NUMBYTMST       ; Keep copy of buffer length
+00AA D0D0            202             POP     PSW
+00AC 32              203             RETI
+----                 204     CSEG    AT      00B0H                   ; Master transmitter routine
+00B0                 205     NOTLDAT1:
+00B0 75D018          206             MOV     PSW,    #SELRB3
+00B3 87DA            207             MOV     S1DAT,  @R1             ; Copy data into tx buffer
+00B5 75D8C5          208     CON:    MOV     S1CON,  #NA_NO_NI_A
+00B8 09              209             INC     R1                      ; Increment data pointer
+00B9 D0D0            210     RETmt:  POP     PSW
+00BB 32              211             RETI
+----                 212     CSEG    AT      00C0H                   ; Master reciever routine
+00C0 D50005   F      213     REC1:   DJNZ    NUMBYTMST,NOTLDAT2      ; Check for end of recieve
+00C3 75D8C1          214             MOV     S1CON,  #NA_NO_NI_NA    ; No Acknowledge
+                     215     ;       SETB    iic_mready
+00C6 8004            216             SJMP    RETmr
+00C8                 217     NOTLDAT2:
+00C8 75D8C5          218             MOV     S1CON,  #NA_NO_NI_A
+00CB 08              219             INC     R0
+00CC D0D0            220     RETmr:  POP     PSW
+00CE 32              221             RETI
+----                 222     CSEG    AT      00D0H                   ; Initialise slave reception
+00D0                 223     INITSRD:
+00D0 A800     F      224             MOV     R0,     SD              ; Set data pointer
+00D2 A900     F      225             MOV     R1,     NUMBYTSLA       ; Set buffer length
+00D4 D0D0            226             POP     PSW
+00D6 32              227             RETI
+----                 228     CSEG    AT      00D8H                   ; Slave reciever routine
+00D8 D907            229     REC2:   DJNZ    R1,     NOTLDAT3        ; Last byte expected
+00DA 75D8C1          230             MOV     S1CON,  #NA_NO_NI_NA    ; No acknowledge
+00DD D200            231             SETB    iic_sready              ; Set slave ready flag
+00DF 01E5            232             AJMP    RETsr
+00E1                 233     NOTLDAT3:
+00E1 75D8C5          234             MOV     S1CON,  #NA_NO_NI_A     ; Acknowledge next byte
+00E4 08              235             INC     R0                      ; Increment data pointer
+00E5 D0D0            236     RETsr:  POP     PSW
+00E7 32              237             RETI
+----                 238     CSEG    AT      00E8H                   ; Initialise slave transmitter
+00E8                 239     INITBASE2:
+00E8 75D018          240             MOV     PSW,    #SELRB3
+00EB A900     F      241             MOV     R1,     SD              ; Set data pointer
+00ED 87DA            242             MOV     S1DAT,  @R1             ; Copy data to tx buffer
+00EF 75D8C5          243             MOV     S1CON,  #NA_NO_NI_A
+00F2 D0D0            244             POP     PSW
+00F4 32              245             RETI
+----                 246     CSEG    AT      00F8H                   ; Slave transmitter routine
+00F8 75D8C5          247     CON2:   MOV     S1CON,  #NA_NO_NI_A
+00FB 09              248             INC     R1                      ; Increment data pointer
+00FC D0D0            249             POP     PSW
+00FE 32              250             RETI
+                     251     END     
+A51 MACRO ASSEMBLER  IICDRIV                                                                23/07/97 19:02:26 PAGE     5
+
+SYMBOL TABLE LISTING
+------ ----- -------
+
+
+N A M E             T Y P E  V A L U E   ATTRIBUTES
+
+A_NO_NI_A. . . . .  N NUMB   00E5H   A   
+BACKUP . . . . . .  D ADDR   0003H   R   SEG=IICDATA
+CON. . . . . . . .  C ADDR   00B5H   A   
+CON2 . . . . . . .  C ADDR   00F8H   A   
+ENSIO1 . . . . . .  N NUMB   00A0H   A   
+HADD . . . . . . .  D ADDR   0007H   R   SEG=IICDATA
+IEN0 . . . . . . .  D ADDR   00A8H   A   
+IICCODE. . . . . .  C SEG    0024H       REL=UNIT
+IICDATA. . . . . .  D SEG    0008H       REL=UNIT
+IIC_MREADY . . . .  B ADDR   0020H.1 A   
+IIC_SREADY . . . .  B ADDR   0020H.0 A   
+INITBASE1. . . . .  C ADDR   00A0H   A   
+INITBASE2. . . . .  C ADDR   00E8H   A   
+INITSRD. . . . . .  C ADDR   00D0H   A   
+MD . . . . . . . .  D ADDR   0001H   R   SEG=IICDATA
+NA_NO_NI_A . . . .  N NUMB   00C5H   A   
+NA_NO_NI_NA. . . .  N NUMB   00C1H   A   
+NA_O_NI_A. . . . .  N NUMB   00D5H   A   
+NOTLDAT1 . . . . .  C ADDR   00B0H   A   
+NOTLDAT2 . . . . .  C ADDR   00C8H   A   
+NOTLDAT3 . . . . .  C ADDR   00E1H   A   
+NUMBYTMST. . . . .  D ADDR   0004H   R   SEG=IICDATA
+NUMBYTSLA. . . . .  D ADDR   0005H   R   SEG=IICDATA
+P1 . . . . . . . .  D ADDR   0090H   A   
+PAG1 . . . . . . .  N NUMB   0001H   A   
+PSW. . . . . . . .  D ADDR   00D0H   A   
+REC1 . . . . . . .  C ADDR   00C0H   A   
+REC2 . . . . . . .  C ADDR   00D8H   A   
+RETMR. . . . . . .  C ADDR   00CCH   A   
+RETMT. . . . . . .  C ADDR   00B9H   A   
+RETSR. . . . . . .  C ADDR   00E5H   A   
+S1ADR. . . . . . .  D ADDR   00DBH   A   
+S1CON. . . . . . .  D ADDR   00D8H   A   
+S1DAT. . . . . . .  D ADDR   00DAH   A   
+S1STA. . . . . . .  D ADDR   00D9H   A   
+SD . . . . . . . .  D ADDR   0000H   R   SEG=IICDATA
+SELRB3 . . . . . .  N NUMB   0018H   A   
+SIO1HP . . . . . .  B ADDR   00B8H.5 A   
+SLA. . . . . . . .  D ADDR   0006H   R   SEG=IICDATA
+SLEN . . . . . . .  D ADDR   0002H   R   SEG=IICDATA
+STA. . . . . . . .  B ADDR   00D8H.5 A   
+T_MREADY . . . . .  C ADDR   0090H   A   
+T_MREADYRX . . . .  C ADDR   0095H   A   
+_IIC_INIT. . . . .  C ADDR   0000H   R   SEG=IICCODE
+_IIC_MSTART. . . .  C ADDR   0019H   R   SEG=IICCODE
+_IIC_SSET. . . . .  C ADDR   0012H   R   SEG=IICCODE
+
+
+REGISTER BANK(S) USED: 0 3 
+
+
+ASSEMBLY COMPLETE.  0 WARNING(S), 0 ERROR(S)

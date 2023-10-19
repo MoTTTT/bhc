@@ -1,0 +1,281 @@
+C51 COMPILER V5.10,  PORTLCD                                                               22/07/97  23:13:07  PAGE 1   
+
+
+DOS C51 COMPILER V5.10, COMPILATION OF MODULE PORTLCD
+OBJECT MODULE PLACED IN PORTLCD.OBJ
+COMPILER INVOKED BY: D:\C51\BIN\C51.EXE PORTLCD.C
+
+stmt level    source
+
+   1          /*			Copyright Q Solutions				*/
+   2          /*	File:		PortLCD.c					*/
+   3          /*	Programmer:	MoT						*/
+   4          /*	Module:		I/O Port Controlled LCD 			*/
+   5          /*									*/
+   6          /*			History						*/
+   7          /* 8 April '97		Written from scratch				*/
+   8          /* 23:10pm 07-22-1997 	Initialisation problems fixed			*/
+   9          /* 23:12pm 07-22-1997 	Problems with i2c bus?				*/
+  10          /*									*/
+  11          
+  12          #pragma		CODE
+  13          
+  14          #include	<stdio.h>
+  15          #include	<reg552.h>
+  16          
+  17          #define	LCD_BF	0x08			/* Busy flag mask		*/
+  18          #define	LCD_I0	0x20			/* 4 bits			*/
+  19          #define	LCD_I1	0x2C			/* 4 bits; 2 line; 5x10		*/
+  20          #define	LCD_I2	0x0C			/* Display ON; Cursor off	*/
+  21          #define	LCD_I3	0x06			/* Auto increment; Freeze	*/
+  22          #define	LCD_CLR	0x01			/* Clear LCD			*/
+  23          #define	LCD_L1	0x80			/* Line 1			*/
+  24          #define	LCD_L2	0xC0			/* Line 2			*/
+  25          
+  26          typedef unsigned char byte;
+  27          typedef unsigned int uint;
+  28          
+  29          /* Control and DATA port defines					*/
+  30          #define	L_IO	P1			/* LCD Data Port		*/
+  31          #define	LINES	2			/* Number of LCD lines		*/
+  32          #define	COLUMNS	16			/* Number of LCD columns	*/
+  33          sbit	L_ENAB=	0xC7;			/* LCD Enable			*/
+  34          sbit	L_READ=	0xC6;			/* LCD Read			*/
+  35          sbit	L_DATA= 0xC5;			/* LCD DATA			*/
+  36          
+  37          void	init_plcd	( void );	/* Initialise LCD module	*/
+  38          char	set_plcd	( char in );	/* Control LCD			*/
+  39          char	pputchar	( char in );	/* Write data/command to LCD	*/
+  40          char	writeln	( char *in, char len );	/* Write a line to LCD		*/
+  41          void	paint_plcd (char*l1,char*l2);	/* Draw Screen			*/
+  42          
+  43          void	paint_plcd (char*l1,char*l2)	/* Draw Screen			*/
+  44          {
+  45   1      	set_plcd( LCD_L1 );		/* Goto Line 1			*/
+  46   1      	printf	( l1 );			/* Print first string		*/
+  47   1      	set_plcd( LCD_L2 );		/* Goto Line 2			*/
+  48   1      	printf	( l2 );			/* Print second string		*/
+  49   1      }
+  50          
+  51          void	init_plcd	( void )	/* Initialise LCD module	*/
+  52          {
+  53   1      char	i= 1;
+  54   1      	set_plcd( LCD_I0 );		/* See #define's for details	*/
+  55   1      	set_plcd( LCD_I1 );		/* See #define's for details	*/
+  56   1      	set_plcd( LCD_I2 );		/* See #define's for details	*/
+  57   1      	set_plcd( LCD_I3 );		/* See #define's for details	*/
+  58   1      	set_plcd( LCD_CLR);		/* Clear display		*/
+  59   1      	while	( i++ );		/* Wait for clear display	*/
+C51 COMPILER V5.10,  PORTLCD                                                               22/07/97  23:13:07  PAGE 2   
+
+  60   1      }
+  61          
+  62          char	set_plcd	( char in )	/* Control LCD			*/
+  63          {
+  64   1      	L_DATA=	0;			/* Set control			*/
+  65   1      	return ( pputchar( in ));	/* Send control settings	*/
+  66   1      }
+  67          
+  68          char	pputchar	( char in )
+  69          {
+  70   1      byte	busy, busycount=1;
+  71   1      	L_READ=	0;			/* Select write			*/
+  72   1      	L_ENAB=	1;			/* Enable LCD			*/
+  73   1      	L_IO= (L_IO& 0xF0)| (in>> 4);	/* Write 1st nibble		*/
+  74   1      	L_ENAB=	0;			/* Clock data into LCD		*/
+  75   1      	L_ENAB=	1;			/* Enable LCD			*/
+  76   1      	L_IO= (L_IO& 0xF0)| (in& 0x0F);	/* Write 2nd nibble		*/
+  77   1      	L_ENAB=	0;			/* Clock data into LCD		*/
+  78   1      	L_DATA=	0;			/* Select register		*/
+  79   1      	L_READ=	1;			/* Select read			*/
+  80   1      	do				/* Wait for busy flag to clear	*/
+  81   1      	{
+  82   2      		L_ENAB=	1;		/* Enable LCD			*/
+  83   2      		busy= L_IO& LCD_BF;	/* Read and mask out busy flag	*/
+  84   2      		L_ENAB=	0;
+  85   2      		L_ENAB=	1;		/* Dummy read of second nibble	*/
+  86   2      		L_ENAB=	0;
+  87   2      		if	( !busycount++ )/* Notch one up			*/
+  88   2      		{
+  89   3      			L_DATA=	1;
+  90   3      			return	( -1 );	/* WRITE FAIL !!		*/
+  91   3      		}
+  92   2      	}	while	( busy );
+  93   1      	L_DATA=	1;			/* Next byte defaults to DATA	*/
+  94   1      	return	( in );
+  95   1      }
+C51 COMPILER V5.10,  PORTLCD                                                               22/07/97  23:13:07  PAGE 3   
+
+ASSEMBLY LISTING OF GENERATED OBJECT CODE
+
+
+             ; FUNCTION _paint_plcd (BEGIN)
+0000 8B00    R     MOV     l1,R3
+0002 8A00    R     MOV     l1+01H,R2
+0004 8900    R     MOV     l1+02H,R1
+                                           ; SOURCE LINE # 43
+                                           ; SOURCE LINE # 44
+                                           ; SOURCE LINE # 45
+0006 7F80          MOV     R7,#080H
+0008 120000  R     LCALL   _set_plcd
+                                           ; SOURCE LINE # 46
+000B AB00    R     MOV     R3,l1
+000D AA00    R     MOV     R2,l1+01H
+000F A900    R     MOV     R1,l1+02H
+0011 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 47
+0014 7FC0          MOV     R7,#0C0H
+0016 120000  R     LCALL   _set_plcd
+                                           ; SOURCE LINE # 48
+0019 AB00    R     MOV     R3,l2
+001B AA00    R     MOV     R2,l2+01H
+001D A900    R     MOV     R1,l2+02H
+001F 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 49
+0022 22            RET     
+             ; FUNCTION _paint_plcd (END)
+
+             ; FUNCTION init_plcd (BEGIN)
+                                           ; SOURCE LINE # 51
+                                           ; SOURCE LINE # 52
+                                           ; SOURCE LINE # 53
+0000 750001  R     MOV     i,#01H
+                                           ; SOURCE LINE # 54
+0003 7F20          MOV     R7,#020H
+0005 120000  R     LCALL   _set_plcd
+                                           ; SOURCE LINE # 55
+0008 7F2C          MOV     R7,#02CH
+000A 120000  R     LCALL   _set_plcd
+                                           ; SOURCE LINE # 56
+000D 7F0C          MOV     R7,#0CH
+000F 120000  R     LCALL   _set_plcd
+                                           ; SOURCE LINE # 57
+0012 7F06          MOV     R7,#06H
+0014 120000  R     LCALL   _set_plcd
+                                           ; SOURCE LINE # 58
+0017 7F01          MOV     R7,#01H
+0019 120000  R     LCALL   _set_plcd
+001C         ?C0002:
+                                           ; SOURCE LINE # 59
+001C AF00    R     MOV     R7,i
+001E 0500    R     INC     i
+0020 EF            MOV     A,R7
+0021 70F9          JNZ     ?C0002
+                                           ; SOURCE LINE # 60
+0023         ?C0004:
+0023 22            RET     
+             ; FUNCTION init_plcd (END)
+
+             ; FUNCTION _set_plcd (BEGIN)
+;---- Variable 'in' assigned to Register 'R7' ----
+                                           ; SOURCE LINE # 62
+                                           ; SOURCE LINE # 63
+                                           ; SOURCE LINE # 64
+0000 C2C5          CLR     L_DATA
+C51 COMPILER V5.10,  PORTLCD                                                               22/07/97  23:13:07  PAGE 4   
+
+                                           ; SOURCE LINE # 65
+0002 120000  R     LCALL   _pputchar
+                                           ; SOURCE LINE # 66
+0005         ?C0005:
+0005 22            RET     
+             ; FUNCTION _set_plcd (END)
+
+             ; FUNCTION _pputchar (BEGIN)
+;---- Variable 'in' assigned to Register 'R6' ----
+0000 AE07          MOV     R6,AR7
+                                           ; SOURCE LINE # 68
+                                           ; SOURCE LINE # 69
+                                           ; SOURCE LINE # 70
+;---- Variable 'busycount' assigned to Register 'R5' ----
+0002 7D01          MOV     R5,#01H
+                                           ; SOURCE LINE # 71
+0004 C2C6          CLR     L_READ
+                                           ; SOURCE LINE # 72
+0006 D2C7          SETB    L_ENAB
+                                           ; SOURCE LINE # 73
+0008 EE            MOV     A,R6
+0009 7804          MOV     R0,#04H
+000B         ?C0011:
+000B A2E7          MOV     C,ACC.7
+000D 13            RRC     A
+000E D8FB          DJNZ    R0,?C0011
+0010 FF            MOV     R7,A
+0011 E590          MOV     A,P1
+0013 54F0          ANL     A,#0F0H
+0015 4F            ORL     A,R7
+0016 F590          MOV     P1,A
+                                           ; SOURCE LINE # 74
+0018 C2C7          CLR     L_ENAB
+                                           ; SOURCE LINE # 75
+001A D2C7          SETB    L_ENAB
+                                           ; SOURCE LINE # 76
+001C EE            MOV     A,R6
+001D 540F          ANL     A,#0FH
+001F FF            MOV     R7,A
+0020 E590          MOV     A,P1
+0022 54F0          ANL     A,#0F0H
+0024 4F            ORL     A,R7
+0025 F590          MOV     P1,A
+                                           ; SOURCE LINE # 77
+0027 C2C7          CLR     L_ENAB
+                                           ; SOURCE LINE # 78
+0029 C2C5          CLR     L_DATA
+                                           ; SOURCE LINE # 79
+002B D2C6          SETB    L_READ
+002D         ?C0008:
+                                           ; SOURCE LINE # 81
+                                           ; SOURCE LINE # 82
+002D D2C7          SETB    L_ENAB
+                                           ; SOURCE LINE # 83
+002F E590          MOV     A,P1
+0031 5408          ANL     A,#08H
+;---- Variable 'busy' assigned to Register 'R4' ----
+0033 FC            MOV     R4,A
+                                           ; SOURCE LINE # 84
+0034 C2C7          CLR     L_ENAB
+                                           ; SOURCE LINE # 85
+0036 D2C7          SETB    L_ENAB
+                                           ; SOURCE LINE # 86
+0038 C2C7          CLR     L_ENAB
+                                           ; SOURCE LINE # 87
+003A AF05          MOV     R7,AR5
+C51 COMPILER V5.10,  PORTLCD                                                               22/07/97  23:13:07  PAGE 5   
+
+003C 0D            INC     R5
+003D EF            MOV     A,R7
+003E 7005          JNZ     ?C0006
+                                           ; SOURCE LINE # 88
+                                           ; SOURCE LINE # 89
+0040 D2C5          SETB    L_DATA
+                                           ; SOURCE LINE # 90
+0042 7FFF          MOV     R7,#0FFH
+0044 22            RET     
+                                           ; SOURCE LINE # 91
+                                           ; SOURCE LINE # 92
+0045         ?C0006:
+0045 EC            MOV     A,R4
+0046 70E5          JNZ     ?C0008
+                                           ; SOURCE LINE # 93
+0048 D2C5          SETB    L_DATA
+                                           ; SOURCE LINE # 94
+004A AF06          MOV     R7,AR6
+                                           ; SOURCE LINE # 95
+004C         ?C0010:
+004C 22            RET     
+             ; FUNCTION _pputchar (END)
+
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    154    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       7
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

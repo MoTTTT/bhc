@@ -1,0 +1,7 @@
+SET PATH=C:\DOS;C:\MOUSE;C:\NC;C:\TC;C:\wcrc\SILVERS
+SET LMOUSE=C:\MOUSE
+SET PROMPT=$P$G
+SET TEMP=C:\TMP
+SET DATA=C:\SILVERS\DATA
+cd c:\wcrc\silvers
+silvs.bat

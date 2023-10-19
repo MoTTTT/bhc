@@ -1,0 +1,17 @@
+######################################################
+#
+#    compile the testiprx make testiprx program
+#
+######################################################
+
+#SHELL= /bin/sh
+
+#INC = $(INCLUDE)/msg.h
+#LIBRARAY =
+
+testiprx : testiprx.c
+	echo
+	cc -g -Zi -lx testiprx.c -lm -o $@ 
+	cp testiprx.c $TEST
+	cp testiprx $TEST
+	cp testiprx ../bin

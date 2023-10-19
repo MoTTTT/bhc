@@ -1,0 +1,17 @@
+######################################################
+#
+#    compile the testtx make testtx program
+#
+######################################################
+
+#SHELL= /bin/sh
+
+#INC = $(INCLUDE)/msg.h
+#LIBRARAY =
+
+testtx : testtx.c
+	echo
+	cc -g -Zi -lx testtx.c -lm -o $@ 
+	cp testtx.c $TEST
+	cp testtx $TEST
+	cp testtx ../bin

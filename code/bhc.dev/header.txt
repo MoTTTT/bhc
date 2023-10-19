@@ -1,0 +1,7 @@
+/*			Copyright Q Solutions				*/
+/*	File:		bhc.inc						*/
+/*	Programmer:	MoT						*/
+/*	Project:	Borehole Controller				*/
+/*	Module:		Main Controller Module				*/
+/*									*/
+/*									*/

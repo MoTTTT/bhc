@@ -1,0 +1,934 @@
+C51 COMPILER V3.40,  LCDPAD                                                                05/07/97  03:23:17  PAGE 1   
+
+
+DOS C51 COMPILER V3.40, COMPILATION OF MODULE LCDPAD
+OBJECT MODULE PLACED IN LCDPAD.OBJ
+COMPILER INVOKED BY: D:\C51\BIN\C51.EXE LCDPAD.C CODE SYMBOLS DEBUG OBJECTEXTEND
+
+stmt level    source
+
+   1          /*			Copyright Q Solutions				*/
+   2          /*	File:		LcdPad.c					*/
+   3          /*	Programmer:	MoT						*/
+   4          /*	Project:	uNode Library					*/
+   5          /*	Module:		IIC Bus Keypad & Screen Module			*/
+   6          /*									*/
+   7          /*			History						*/
+   8          /* 17:29 30/03/1997	Written from scratch, using uNode Library	*/
+   9          /*			Initialisation and main loop.			*/
+  10          /* ??			Port Implementation ( reduced peripheral	*/
+  11          /*				chip count)				*/
+  12          /* 11:35 12/04/1997 	uNode Library removed, code cleanup.		*/
+  13          /* 23:37 13/04/1997 	IIC Bus support added,				*/
+  14          /*			State machine implimented.			*/
+  15          /* 09:50am 06-10-1997 	Port Implementation dependancy removed,		*/
+  16          /*			uNode Library substituted			*/
+  17          /* 03:02am 07-05-1997 	Keycode remapping Added				*/
+  18          /*									*/
+  19          
+  20          #pragma		ROM (COMPACT)
+  21          #pragma		LARGE
+  22          
+  23          /* Library files							*/
+  24          #include	<stdio.h>
+  25          #include	<reg552.h>
+  26          
+  27          /* Target Specific parameters. Change these to generate final ROM image	*/
+  28          #define 	LP_ADR	0x60		/* IIC Slave Address		*/
+  29          #define 	BHC_ADR	0x68		/* Main Controller Address	*/
+  30          #define		COLUMNS	16		/* Number of LCD Columns	*/
+  31          
+  32          typedef	unsigned int uint;		/* Optimise for size & speed:	*/
+  33          typedef	unsigned char byte;		/* Use unsigned char and int	*/
+  34          
+  35          #include	<nkey.h>		/* Keypad Driver routines	*/
+  36          #include	<nodelcd.h>		/* LCD routines			*/
+  37          #include	<iic.h>			/* IIC Bus routines		*/
+  38          #include	<wdog.h>		/* Watchdog refresh		*/
+  39          
+  40          /* Local defines							*/
+  41          #define		S_IDLE	0x10		/* Idle State			*/
+  42          #define		S_000	0x00		/* Testing for peripherals	*/
+  43          #define		S_0K0	0x02		/* Keypad ACK			*/
+  44          #define		S_00L	0x04		/* LCD Control			*/
+  45          #define		S_0KL	0x06		/* BHC present, No RTC		*/
+  46          #define		S_ERR	0x08		/* Keypad not acknowledged	*/
+  47          #define		PING	100		/* Send dummy keycode		*/
+  48          #define		TRY_MAX	5		/* Number of Keypad retries	*/
+  49          const char *signon1= " I2C Bus Remote ";/* Line 1 of sign on screen	*/
+  50          const char *signon2= " LcdPad Module  ";/* Line 2 of signon screen	*/
+  51          const char *modname= "  LcdPad Module ";/* Header			*/
+  52          const char *mes_off= "Off Line        ";/* Off line message		*/
+  53          const char *mes_con= "  Keypad Online ";/* Print Confirmation		*/
+  54          const char *err1=    "   Write Error  ";/* Print Status			*/
+  55          const char *prompt=  "  Press any Key ";/* Prompt			*/
+  56          const char *clr=     "                ";/* Blank line			*/
+  57          
+  58          const char node_map[16]={  3, 19, 18, 17, 14,	/* uNode to LcdPad key	*/
+  59          			  13, 12,  9,  8,  7,	/* character		*/
+C51 COMPILER V3.40,  LCDPAD                                                                05/07/97  03:23:17  PAGE 2   
+
+  60          			  11, 10,  6,  5, 16,1};/* mapping		*/
+  61          
+  62          bit		dirty= 1;		/* Sreen repaint flag		*/
+  63          char idata	iic_in[2];		/* IIC Bus input buffer		*/
+  64          char idata	iic_out[2];		/* IIC Bus output buffer	*/
+  65          
+  66          void	initialise	( )		/* Initialise Hardware		*/
+  67          {
+  68   1      	EA	= 1;			/* ENABLE GLOBAL INT		*/
+  69   1      	init_nlcd	( );		/* Initialise uNode LCD		*/
+  70   1      	init_nkey	( );		/* Initialise uNode Keypad	*/
+  71   1      	iic_init	( LP_ADR );	/* Initialise IIC Bus		*/
+  72   1      	iic_sset	( iic_in, 2 );	/* Set up slave input buffer	*/
+  73   1      }
+  74          
+  75          char	putchar		( char out )
+  76          {
+  77   1      	return	( nputchar ( out ) );
+  78   1      }
+  79          
+  80          void	proc_iic	( void )	/* Process I2C In (LCD data)	*/
+  81          {
+  82   1      char	in= iic_in[1];
+  83   1      	switch	( iic_in[0] )		/* Command			*/
+  84   1      	{
+  85   2      	case 0:	paint_nlcd (clr, clr);	/* Clear LCD			*/
+  86   2      		set_nlcd ( NLCD_L1 );	/* Set cursor to line 1 	*/
+  87   2      		break;
+  88   2      	case 1:	set_nlcd( in );		/* Write LCD control		*/
+  89   2      		break;
+  90   2      	case 2: nputchar( in );		/* Write LCD data		*/
+  91   2      		break;
+  92   2      	case 3: break;			/* Read LCD control		*/
+  93   2      	case 4: break;			/* Read LCD data		*/
+  94   2      	case PING: break;		/* ACKnowledged by hardware	*/
+  95   2      	default:
+  96   2      		break;
+  97   2      	}
+  98   1      	iic_sready=	0;		/* Clear slave reception flag	*/
+  99   1      }
+ 100          
+ 101          bit	proc_key	( )		/* Read and process keypad	*/
+ 102          {
+ 103   1      byte	retry=	TRY_MAX;		/* Set retry timout		*/
+ 104   1      	iic_out[0]=node_map[ngetkey( )];/* Read key from keypad		*/
+ 105   1      	while	( retry-- )
+ 106   1      	{
+ 107   2      		iic_mstart (BHC_ADR,1,iic_out);	/* Send key to BHC	*/
+ 108   2      		if	( iic_wait( ) )	/* Was transmission acknowledged*/
+ 109   2      			return	( 0 );	/* Return Success		*/
+ 110   2      	}
+ 111   1      	return	( 1 );			/* No reply			*/
+ 112   1      }
+ 113          
+ 114          void	paint	( char *l1, char *l2 )	/* Draw Screen			*/
+ 115          {
+ 116   1      	if	( dirty )		/* Only if necessary		*/
+ 117   1      	{
+ 118   2      		paint_nlcd( l1, l2 );	/* Print strings		*/
+ 119   2      		dirty= 0;		/* Done				*/
+ 120   2      	}
+ 121   1      }
+ 122          
+ 123          char	test_key	( )		/* Check for keypad acknowledge	*/
+ 124          {
+ 125   1      	iic_out[0]= 	PING;		/* Send dummy key		*/
+C51 COMPILER V3.40,  LCDPAD                                                                05/07/97  03:23:17  PAGE 3   
+
+ 126   1      	iic_mstart	( BHC_ADR, 1, iic_out );
+ 127   1      	return		( iic_wait( ));	/* If no reply: Return Error	*/
+ 128   1      }
+ 129          
+ 130          void	main	( void )		/* Main Loop			*/
+ 131          {
+ 132   1      byte	state= S_IDLE;			/* LcdPad state variable	*/
+ 133   1      uint	counter= 0;			/* Routine cycle counter	*/
+ 134   1      byte	skip= 0;			/* Test periph every 256 loops	*/
+ 135   1         initialise	( );			/* Set up drivers		*/
+ 136   1         while	( 1 )			/* Do the following forever	*/
+ 137   1         {
+ 138   2      	wdog	( 100 );		/* Refresh the Watchdog timer	*/
+ 139   2      	switch	( state )		/* Act appropriate to state	*/
+ 140   2      	{
+ 141   3      	case S_IDLE:			/* Display Product Name		*/
+ 142   3      		paint(signon1,signon2);	/* Print intro 			*/
+ 143   3      		if	( x1_flag )	/* Check for keypress		*/
+ 144   3      		{
+ 145   4      			ngetkey ( );	/* Flush buffer			*/
+ 146   4      			state= S_000;	/* Test for system status	*/
+ 147   4      			dirty= 1;	/* Repaint screen		*/
+ 148   4      		}
+ 149   3      		break;
+ 150   3      	case S_000:			/* Off Line; Test system status	*/
+ 151   3      		paint(modname,mes_off);	/* Print Status			*/
+ 152   3      		set_nlcd( NLCD_L2+ 9 );	/* Goto line 2			*/
+ 153   3      		printf	("%4u",counter);/* Show some activity		*/
+ 154   3      		if	( !skip )	/* Only test every 256 cycles	*/
+ 155   3      		{
+ 156   4      			if (test_key())	/* Check for Keypad acknowledge	*/
+ 157   4      			{
+ 158   5      				state= S_0K0;	/* Change state		*/
+ 159   5      				dirty= 1;	/* Repaint screen	*/
+ 160   5      				break;
+ 161   5      			}
+ 162   4      		}
+ 163   3      		if	( x1_flag )	/* Check for keypress		*/
+ 164   3      			while	( 1 );	/* Reset Unit 			*/
+ 165   3      		break;
+ 166   3      	case S_0K0:			/* Keypad ACK			*/
+ 167   3      		if	( iic_sready )	/* Check for LCD Control	*/
+ 168   3      		{
+ 169   4      			state= S_0KL;	/* Change state			*/
+ 170   4      			break;
+ 171   4      		}
+ 172   3      		if	( x1_flag )	/* Check for keypress		*/
+ 173   3      		{
+ 174   4      			if (proc_key())	/* Process, check for error	*/
+ 175   4      			{
+ 176   5      			   state= S_000;/* No acknowledge		*/
+ 177   5      			   dirty= 1;	/* Refresh screen		*/
+ 178   5      			}
+ 179   4      		}
+ 180   3      		break;
+ 181   3      	case S_0KL:			/* Key Ack + LCD Control	*/
+ 182   3      		if	( iic_sready )	/* Incoming LCD Command		*/
+ 183   3      			proc_iic ( );	/* Process it			*/
+ 184   3      		if	( x1_flag )	/* Keypress			*/
+ 185   3      		{
+ 186   4      			if (proc_key())	/* Process, check for error	*/
+ 187   4      			{
+ 188   5      			   state= S_ERR;/* Change state			*/
+ 189   5      			   dirty= 1;	/* Repaint screen		*/
+ 190   5      			}
+ 191   4      		}
+C51 COMPILER V3.40,  LCDPAD                                                                05/07/97  03:23:17  PAGE 4   
+
+ 192   3      		break;
+ 193   3      	case S_ERR:			/* LCD Control			*/
+ 194   3      		paint	( err1,prompt );/* Print Status			*/
+ 195   3      		if	( !skip )	/* Only test every 256 cycles	*/
+ 196   3      		{
+ 197   4      			if (test_key())	/* Check for Keypad acknowledge	*/
+ 198   4      			{
+ 199   5      				state= S_0KL;	/* Change State		*/
+ 200   5      				break;
+ 201   5      			}
+ 202   4      		}
+ 203   3      		if	( x1_flag )	/* Check for keypress		*/
+ 204   3      			while	( 1 );	/* Stall unit : Reset I2C bus	*/
+ 205   3      		break;
+ 206   3      	default:
+ 207   3      		state= S_IDLE;
+ 208   3      		break;
+ 209   3      	}
+ 210   2      	skip++;				/* Increment test skip		*/
+ 211   2      	if	( ++counter >9999 )	/* Increment loop counter	*/
+ 212   2      	{
+ 213   3      		counter= 0;
+ 214   3      	}
+ 215   2          }
+ 216   1      }
+C51 COMPILER V3.40,  LCDPAD                                                                05/07/97  03:23:17  PAGE 5   
+
+ASSEMBLY LISTING OF GENERATED OBJECT CODE
+
+
+             ; FUNCTION initialise (BEGIN)
+                                           ; SOURCE LINE # 66
+                                           ; SOURCE LINE # 67
+                                           ; SOURCE LINE # 68
+0000 D2AF          SETB    EA
+                                           ; SOURCE LINE # 69
+0002 120000  E     LCALL   init_nlcd
+                                           ; SOURCE LINE # 70
+0005 120000  E     LCALL   init_nkey
+                                           ; SOURCE LINE # 71
+0008 7F60          MOV     R7,#060H
+000A 120000  E     LCALL   _iic_init
+                                           ; SOURCE LINE # 72
+000D 7F00    R     MOV     R7,#LOW iic_in
+000F 7D02          MOV     R5,#02H
+0011 120000  E     LCALL   _iic_sset
+                                           ; SOURCE LINE # 73
+0014 22            RET     
+             ; FUNCTION initialise (END)
+
+             ; FUNCTION _putchar (BEGIN)
+;---- Variable 'out' assigned to Register 'R7' ----
+                                           ; SOURCE LINE # 75
+                                           ; SOURCE LINE # 76
+                                           ; SOURCE LINE # 77
+0000 120000  E     LCALL   _nputchar
+                                           ; SOURCE LINE # 78
+0003         ?C0002:
+0003 22            RET     
+             ; FUNCTION _putchar (END)
+
+             ; FUNCTION proc_iic (BEGIN)
+                                           ; SOURCE LINE # 80
+                                           ; SOURCE LINE # 81
+                                           ; SOURCE LINE # 82
+0000 7800    R     MOV     R0,#iic_in+01H
+0002 E6            MOV     A,@R0
+0003 900000  R     MOV     DPTR,#in
+0006 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 83
+0007 18            DEC     R0
+0008 E6            MOV     A,@R0
+0009 14            DEC     A
+000A 6030          JZ      ?C0005
+000C 14            DEC     A
+000D 6037          JZ      ?C0006
+000F 2402          ADD     A,#02H
+0011 703B          JNZ     ?C0003
+                                           ; SOURCE LINE # 84
+                                           ; SOURCE LINE # 85
+0013         ?C0004:
+0013 900000  R     MOV     DPTR,#clr
+0016 E0            MOVX    A,@DPTR
+0017 F9            MOV     R1,A
+0018 A3            INC     DPTR
+0019 E0            MOVX    A,@DPTR
+001A FA            MOV     R2,A
+001B A3            INC     DPTR
+001C E0            MOVX    A,@DPTR
+001D 900000  E     MOV     DPTR,#?_paint_nlcd?BYTE+03H
+0020 C9            XCH     A,R1
+0021 F0            MOVX    @DPTR,A
+0022 A3            INC     DPTR
+C51 COMPILER V3.40,  LCDPAD                                                                05/07/97  03:23:17  PAGE 6   
+
+0023 EA            MOV     A,R2
+0024 F0            MOVX    @DPTR,A
+0025 A3            INC     DPTR
+0026 E9            MOV     A,R1
+0027 F0            MOVX    @DPTR,A
+0028 900000  R     MOV     DPTR,#clr
+002B E0            MOVX    A,@DPTR
+002C FB            MOV     R3,A
+002D A3            INC     DPTR
+002E E0            MOVX    A,@DPTR
+002F A3            INC     DPTR
+0030 E0            MOVX    A,@DPTR
+0031 F9            MOV     R1,A
+0032 120000  E     LCALL   _paint_nlcd
+                                           ; SOURCE LINE # 86
+0035 7F80          MOV     R7,#080H
+0037 120000  E     LCALL   _set_nlcd
+                                           ; SOURCE LINE # 87
+003A 8012          SJMP    ?C0003
+                                           ; SOURCE LINE # 88
+003C         ?C0005:
+003C 900000  R     MOV     DPTR,#in
+003F E0            MOVX    A,@DPTR
+0040 FF            MOV     R7,A
+0041 120000  E     LCALL   _set_nlcd
+                                           ; SOURCE LINE # 89
+0044 8008          SJMP    ?C0003
+                                           ; SOURCE LINE # 90
+0046         ?C0006:
+0046 900000  R     MOV     DPTR,#in
+0049 E0            MOVX    A,@DPTR
+004A FF            MOV     R7,A
+004B 120000  E     LCALL   _nputchar
+                                           ; SOURCE LINE # 91
+                                           ; SOURCE LINE # 92
+                                           ; SOURCE LINE # 93
+                                           ; SOURCE LINE # 94
+                                           ; SOURCE LINE # 95
+                                           ; SOURCE LINE # 96
+                                           ; SOURCE LINE # 97
+004E         ?C0003:
+                                           ; SOURCE LINE # 98
+004E C200    E     CLR     iic_sready
+                                           ; SOURCE LINE # 99
+0050 22            RET     
+             ; FUNCTION proc_iic (END)
+
+             ; FUNCTION proc_key (BEGIN)
+                                           ; SOURCE LINE # 101
+                                           ; SOURCE LINE # 102
+                                           ; SOURCE LINE # 103
+0000 900000  R     MOV     DPTR,#retry
+0003 7405          MOV     A,#05H
+0005 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 104
+0006 120000  E     LCALL   ngetkey
+0009 EF            MOV     A,R7
+000A 33            RLC     A
+000B 95E0          SUBB    A,ACC
+000D FE            MOV     R6,A
+000E 7400    R     MOV     A,#LOW node_map
+0010 2F            ADD     A,R7
+0011 F582          MOV     DPL,A
+0013 EE            MOV     A,R6
+0014 3400    R     ADDC    A,#HIGH node_map
+0016 F583          MOV     DPH,A
+C51 COMPILER V3.40,  LCDPAD                                                                05/07/97  03:23:17  PAGE 7   
+
+0018 E0            MOVX    A,@DPTR
+0019 7800    R     MOV     R0,#iic_out
+001B F6            MOV     @R0,A
+001C         ?C0012:
+                                           ; SOURCE LINE # 105
+001C 900000  R     MOV     DPTR,#retry
+001F E0            MOVX    A,@DPTR
+0020 FF            MOV     R7,A
+0021 14            DEC     A
+0022 F0            MOVX    @DPTR,A
+0023 EF            MOV     A,R7
+0024 6010          JZ      ?C0013
+                                           ; SOURCE LINE # 106
+                                           ; SOURCE LINE # 107
+0026 7F68          MOV     R7,#068H
+0028 7D01          MOV     R5,#01H
+002A 7B00    R     MOV     R3,#LOW iic_out
+002C 120000  E     LCALL   _iic_mstart
+                                           ; SOURCE LINE # 108
+002F 120000  E     LCALL   iic_wait
+0032 50E8          JNC     ?C0012
+                                           ; SOURCE LINE # 109
+0034 C3            CLR     C
+0035 22            RET     
+                                           ; SOURCE LINE # 110
+0036         ?C0013:
+                                           ; SOURCE LINE # 111
+0036 D3            SETB    C
+                                           ; SOURCE LINE # 112
+0037         ?C0015:
+0037 22            RET     
+             ; FUNCTION proc_key (END)
+
+             ; FUNCTION _paint (BEGIN)
+;---- Variable 'l1' assigned to Register 'R1/R2/R3' ----
+                                           ; SOURCE LINE # 114
+                                           ; SOURCE LINE # 115
+                                           ; SOURCE LINE # 116
+0000 300022  R     JNB     dirty,?C0017
+                                           ; SOURCE LINE # 117
+                                           ; SOURCE LINE # 118
+0003 C002          PUSH    AR2
+0005 C001          PUSH    AR1
+0007 900000  R     MOV     DPTR,#l2
+000A E0            MOVX    A,@DPTR
+000B F9            MOV     R1,A
+000C A3            INC     DPTR
+000D E0            MOVX    A,@DPTR
+000E FA            MOV     R2,A
+000F A3            INC     DPTR
+0010 E0            MOVX    A,@DPTR
+0011 900000  E     MOV     DPTR,#?_paint_nlcd?BYTE+03H
+0014 C9            XCH     A,R1
+0015 F0            MOVX    @DPTR,A
+0016 A3            INC     DPTR
+0017 EA            MOV     A,R2
+0018 F0            MOVX    @DPTR,A
+0019 A3            INC     DPTR
+001A E9            MOV     A,R1
+001B F0            MOVX    @DPTR,A
+001C D001          POP     AR1
+001E D002          POP     AR2
+0020 120000  E     LCALL   _paint_nlcd
+                                           ; SOURCE LINE # 119
+0023 C200    R     CLR     dirty
+                                           ; SOURCE LINE # 120
+C51 COMPILER V3.40,  LCDPAD                                                                05/07/97  03:23:17  PAGE 8   
+
+                                           ; SOURCE LINE # 121
+0025         ?C0017:
+0025 22            RET     
+             ; FUNCTION _paint (END)
+
+             ; FUNCTION test_key (BEGIN)
+                                           ; SOURCE LINE # 123
+                                           ; SOURCE LINE # 124
+                                           ; SOURCE LINE # 125
+0000 7800    R     MOV     R0,#iic_out
+0002 7664          MOV     @R0,#064H
+                                           ; SOURCE LINE # 126
+0004 7F68          MOV     R7,#068H
+0006 7D01          MOV     R5,#01H
+0008 7B00    R     MOV     R3,#LOW iic_out
+000A 120000  E     LCALL   _iic_mstart
+                                           ; SOURCE LINE # 127
+000D 120000  E     LCALL   iic_wait
+0010 E4            CLR     A
+0011 33            RLC     A
+0012 FF            MOV     R7,A
+                                           ; SOURCE LINE # 128
+0013         ?C0018:
+0013 22            RET     
+             ; FUNCTION test_key (END)
+
+             ; FUNCTION main (BEGIN)
+                                           ; SOURCE LINE # 130
+                                           ; SOURCE LINE # 131
+                                           ; SOURCE LINE # 132
+0000 900000  R     MOV     DPTR,#state
+0003 7410          MOV     A,#010H
+0005 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 133
+0006 E4            CLR     A
+0007 A3            INC     DPTR
+0008 F0            MOVX    @DPTR,A
+0009 A3            INC     DPTR
+000A F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 134
+000B A3            INC     DPTR
+000C F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 135
+000D 120000  R     LCALL   initialise
+0010         ?C0019:
+                                           ; SOURCE LINE # 136
+                                           ; SOURCE LINE # 137
+                                           ; SOURCE LINE # 138
+0010 7F64          MOV     R7,#064H
+0012 120000  E     LCALL   _wdog
+                                           ; SOURCE LINE # 139
+0015 900000  R     MOV     DPTR,#state
+0018 E0            MOVX    A,@DPTR
+0019 604C          JZ      ?C0024
+001B 24FE          ADD     A,#0FEH
+001D 7002          JNZ     $ + 4H
+001F 0100    R     AJMP    ?C0030
+0021 24FC          ADD     A,#0FCH
+0023 7002          JNZ     $ + 4H
+0025 0100    R     AJMP    ?C0034
+0027 24FE          ADD     A,#0FEH
+0029 7002          JNZ     $ + 4H
+002B 0100    R     AJMP    ?C0038
+002D 24F8          ADD     A,#0F8H
+002F 6002          JZ      $ + 4H
+0031 0100    R     AJMP    ?C0044
+C51 COMPILER V3.40,  LCDPAD                                                                05/07/97  03:23:17  PAGE 9   
+
+                                           ; SOURCE LINE # 140
+                                           ; SOURCE LINE # 141
+0033         ?C0022:
+                                           ; SOURCE LINE # 142
+0033 900000  R     MOV     DPTR,#signon2
+0036 E0            MOVX    A,@DPTR
+0037 F9            MOV     R1,A
+0038 A3            INC     DPTR
+0039 E0            MOVX    A,@DPTR
+003A FA            MOV     R2,A
+003B A3            INC     DPTR
+003C E0            MOVX    A,@DPTR
+003D 900000  R     MOV     DPTR,#?_paint?BYTE+03H
+0040 C9            XCH     A,R1
+0041 F0            MOVX    @DPTR,A
+0042 A3            INC     DPTR
+0043 EA            MOV     A,R2
+0044 F0            MOVX    @DPTR,A
+0045 A3            INC     DPTR
+0046 E9            MOV     A,R1
+0047 F0            MOVX    @DPTR,A
+0048 900000  R     MOV     DPTR,#signon1
+004B E0            MOVX    A,@DPTR
+004C FB            MOV     R3,A
+004D A3            INC     DPTR
+004E E0            MOVX    A,@DPTR
+004F FA            MOV     R2,A
+0050 A3            INC     DPTR
+0051 E0            MOVX    A,@DPTR
+0052 F9            MOV     R1,A
+0053 120000  R     LCALL   _paint
+                                           ; SOURCE LINE # 143
+0056 200002  E     JB      x1_flag,$ + 5H
+0059 0100    R     AJMP    ?C0021
+                                           ; SOURCE LINE # 144
+                                           ; SOURCE LINE # 145
+005B 120000  E     LCALL   ngetkey
+                                           ; SOURCE LINE # 146
+005E E4            CLR     A
+005F 900000  R     MOV     DPTR,#state
+0062 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 147
+0063 D200    R     SETB    dirty
+                                           ; SOURCE LINE # 148
+                                           ; SOURCE LINE # 149
+0065 0100    R     AJMP    ?C0021
+                                           ; SOURCE LINE # 150
+0067         ?C0024:
+                                           ; SOURCE LINE # 151
+0067 900000  R     MOV     DPTR,#mes_off
+006A E0            MOVX    A,@DPTR
+006B F9            MOV     R1,A
+006C A3            INC     DPTR
+006D E0            MOVX    A,@DPTR
+006E FA            MOV     R2,A
+006F A3            INC     DPTR
+0070 E0            MOVX    A,@DPTR
+0071 900000  R     MOV     DPTR,#?_paint?BYTE+03H
+0074 C9            XCH     A,R1
+0075 F0            MOVX    @DPTR,A
+0076 A3            INC     DPTR
+0077 EA            MOV     A,R2
+0078 F0            MOVX    @DPTR,A
+0079 A3            INC     DPTR
+007A E9            MOV     A,R1
+007B F0            MOVX    @DPTR,A
+C51 COMPILER V3.40,  LCDPAD                                                                05/07/97  03:23:17  PAGE 10  
+
+007C 900000  R     MOV     DPTR,#modname
+007F E0            MOVX    A,@DPTR
+0080 FB            MOV     R3,A
+0081 A3            INC     DPTR
+0082 E0            MOVX    A,@DPTR
+0083 FA            MOV     R2,A
+0084 A3            INC     DPTR
+0085 E0            MOVX    A,@DPTR
+0086 F9            MOV     R1,A
+0087 120000  R     LCALL   _paint
+                                           ; SOURCE LINE # 152
+008A 7FC9          MOV     R7,#0C9H
+008C 120000  E     LCALL   _set_nlcd
+                                           ; SOURCE LINE # 153
+008F 7B05          MOV     R3,#05H
+0091 7A00    R     MOV     R2,#HIGH ?SC_136
+0093 7900    R     MOV     R1,#LOW ?SC_136
+0095 900000  R     MOV     DPTR,#counter
+0098 E0            MOVX    A,@DPTR
+0099 FF            MOV     R7,A
+009A A3            INC     DPTR
+009B E0            MOVX    A,@DPTR
+009C 900000  E     MOV     DPTR,#?_printf?BYTE+03H
+009F CF            XCH     A,R7
+00A0 F0            MOVX    @DPTR,A
+00A1 A3            INC     DPTR
+00A2 EF            MOV     A,R7
+00A3 F0            MOVX    @DPTR,A
+00A4 120000  E     LCALL   _printf
+                                           ; SOURCE LINE # 154
+00A7 900000  R     MOV     DPTR,#skip
+00AA E0            MOVX    A,@DPTR
+00AB 7010          JNZ     ?C0025
+                                           ; SOURCE LINE # 155
+                                           ; SOURCE LINE # 156
+00AD 120000  R     LCALL   test_key
+00B0 EF            MOV     A,R7
+00B1 600A          JZ      ?C0025
+                                           ; SOURCE LINE # 157
+                                           ; SOURCE LINE # 158
+00B3 900000  R     MOV     DPTR,#state
+00B6 7402          MOV     A,#02H
+00B8 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 159
+00B9 D200    R     SETB    dirty
+                                           ; SOURCE LINE # 160
+00BB 0100    R     AJMP    ?C0021
+                                           ; SOURCE LINE # 161
+                                           ; SOURCE LINE # 162
+00BD         ?C0025:
+                                           ; SOURCE LINE # 163
+00BD 200002  E     JB      x1_flag,$ + 5H
+00C0 0100    R     AJMP    ?C0021
+00C2         ?C0028:
+                                           ; SOURCE LINE # 164
+00C2 80FE          SJMP    ?C0028
+                                           ; SOURCE LINE # 165
+                                           ; SOURCE LINE # 166
+00C4         ?C0030:
+                                           ; SOURCE LINE # 167
+00C4 300008  E     JNB     iic_sready,?C0031
+                                           ; SOURCE LINE # 168
+                                           ; SOURCE LINE # 169
+00C7 900000  R     MOV     DPTR,#state
+00CA 7406          MOV     A,#06H
+00CC F0            MOVX    @DPTR,A
+C51 COMPILER V3.40,  LCDPAD                                                                05/07/97  03:23:17  PAGE 11  
+
+                                           ; SOURCE LINE # 170
+00CD 806B          SJMP    ?C0021
+                                           ; SOURCE LINE # 171
+00CF         ?C0031:
+                                           ; SOURCE LINE # 172
+00CF 300068  E     JNB     x1_flag,?C0021
+                                           ; SOURCE LINE # 173
+                                           ; SOURCE LINE # 174
+00D2 120000  R     LCALL   proc_key
+00D5 5063          JNC     ?C0021
+                                           ; SOURCE LINE # 175
+                                           ; SOURCE LINE # 176
+00D7 E4            CLR     A
+00D8 900000  R     MOV     DPTR,#state
+00DB F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 177
+00DC D200    R     SETB    dirty
+                                           ; SOURCE LINE # 178
+                                           ; SOURCE LINE # 179
+                                           ; SOURCE LINE # 180
+00DE 805A          SJMP    ?C0021
+                                           ; SOURCE LINE # 181
+00E0         ?C0034:
+                                           ; SOURCE LINE # 182
+00E0 300003  E     JNB     iic_sready,?C0035
+                                           ; SOURCE LINE # 183
+00E3 120000  R     LCALL   proc_iic
+00E6         ?C0035:
+                                           ; SOURCE LINE # 184
+00E6 300051  E     JNB     x1_flag,?C0021
+                                           ; SOURCE LINE # 185
+                                           ; SOURCE LINE # 186
+00E9 120000  R     LCALL   proc_key
+00EC 504C          JNC     ?C0021
+                                           ; SOURCE LINE # 187
+                                           ; SOURCE LINE # 188
+00EE 900000  R     MOV     DPTR,#state
+00F1 7408          MOV     A,#08H
+00F3 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 189
+00F4 D200    R     SETB    dirty
+                                           ; SOURCE LINE # 190
+                                           ; SOURCE LINE # 191
+                                           ; SOURCE LINE # 192
+00F6 8042          SJMP    ?C0021
+                                           ; SOURCE LINE # 193
+00F8         ?C0038:
+                                           ; SOURCE LINE # 194
+00F8 900000  R     MOV     DPTR,#prompt
+00FB E0            MOVX    A,@DPTR
+00FC F9            MOV     R1,A
+00FD A3            INC     DPTR
+00FE E0            MOVX    A,@DPTR
+00FF FA            MOV     R2,A
+0100 A3            INC     DPTR
+0101 E0            MOVX    A,@DPTR
+0102 900000  R     MOV     DPTR,#?_paint?BYTE+03H
+0105 C9            XCH     A,R1
+0106 F0            MOVX    @DPTR,A
+0107 A3            INC     DPTR
+0108 EA            MOV     A,R2
+0109 F0            MOVX    @DPTR,A
+010A A3            INC     DPTR
+010B E9            MOV     A,R1
+010C F0            MOVX    @DPTR,A
+010D 900000  R     MOV     DPTR,#err1
+C51 COMPILER V3.40,  LCDPAD                                                                05/07/97  03:23:17  PAGE 12  
+
+0110 E0            MOVX    A,@DPTR
+0111 FB            MOV     R3,A
+0112 A3            INC     DPTR
+0113 E0            MOVX    A,@DPTR
+0114 FA            MOV     R2,A
+0115 A3            INC     DPTR
+0116 E0            MOVX    A,@DPTR
+0117 F9            MOV     R1,A
+0118 120000  R     LCALL   _paint
+                                           ; SOURCE LINE # 195
+011B 900000  R     MOV     DPTR,#skip
+011E E0            MOVX    A,@DPTR
+011F 700E          JNZ     ?C0039
+                                           ; SOURCE LINE # 196
+                                           ; SOURCE LINE # 197
+0121 120000  R     LCALL   test_key
+0124 EF            MOV     A,R7
+0125 6008          JZ      ?C0039
+                                           ; SOURCE LINE # 198
+                                           ; SOURCE LINE # 199
+0127 900000  R     MOV     DPTR,#state
+012A 7406          MOV     A,#06H
+012C F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 200
+012D 800B          SJMP    ?C0021
+                                           ; SOURCE LINE # 201
+                                           ; SOURCE LINE # 202
+012F         ?C0039:
+                                           ; SOURCE LINE # 203
+012F 300008  E     JNB     x1_flag,?C0021
+0132         ?C0042:
+                                           ; SOURCE LINE # 204
+0132 80FE          SJMP    ?C0042
+                                           ; SOURCE LINE # 205
+                                           ; SOURCE LINE # 206
+0134         ?C0044:
+                                           ; SOURCE LINE # 207
+0134 900000  R     MOV     DPTR,#state
+0137 7410          MOV     A,#010H
+0139 F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 208
+                                           ; SOURCE LINE # 209
+013A         ?C0021:
+                                           ; SOURCE LINE # 210
+013A 900000  R     MOV     DPTR,#skip
+013D E0            MOVX    A,@DPTR
+013E 04            INC     A
+013F F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 211
+0140 900000  R     MOV     DPTR,#counter
+0143 E4            CLR     A
+0144 75F001        MOV     B,#01H
+0147 120000  E     LCALL   ?C_IILDX
+014A FE            MOV     R6,A
+014B D3            SETB    C
+014C E5F0          MOV     A,B
+014E 940F          SUBB    A,#0FH
+0150 EE            MOV     A,R6
+0151 9427          SUBB    A,#027H
+0153 5002          JNC     $ + 4H
+0155 0100    R     AJMP    ?C0019
+                                           ; SOURCE LINE # 212
+                                           ; SOURCE LINE # 213
+0157 E4            CLR     A
+0158 900000  R     MOV     DPTR,#counter
+015B F0            MOVX    @DPTR,A
+C51 COMPILER V3.40,  LCDPAD                                                                05/07/97  03:23:17  PAGE 13  
+
+015C A3            INC     DPTR
+015D F0            MOVX    @DPTR,A
+                                           ; SOURCE LINE # 214
+                                           ; SOURCE LINE # 215
+015E 0100    R     AJMP    ?C0019
+                                           ; SOURCE LINE # 216
+0160 22            RET     
+             ; FUNCTION main (END)
+
+C51 COMPILER V3.40,  LCDPAD                                                                05/07/97  03:23:17  PAGE 14  
+
+NAME                                    CLASS   MSPACE  TYPE    OFFSET  SIZE
+====                                    =====   ======  ====    ======  ====
+
+
+_paint . . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+  l1 . . . . . . . . . . . . . . . . .  AUTO     XDATA  PTR      0000H  3
+  l2 . . . . . . . . . . . . . . . . .  AUTO     XDATA  PTR      0003H  3
+AA . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00DAH  1
+_paint_nlcd. . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+T0 . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00B4H  1
+AC . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00D6H  1
+T1 . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00B5H  1
+ECM0 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00ECH  1
+EA . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00AFH  1
+ECM1 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00EDH  1
+ECM2 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00EEH  1
+CMI0 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00CCH  1
+CMI1 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00CDH  1
+CMI2 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00CEH  1
+T20V . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00CFH  1
+ECT0 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00E8H  1
+ECT1 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00E9H  1
+ECT2 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00EAH  1
+ECT3 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00EBH  1
+CTI0 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00C8H  1
+PCM0 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00FCH  1
+CTI1 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00C9H  1
+PCM1 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00FDH  1
+_wdog. . . . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+CTI2 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00CAH  1
+PCM2 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00FEH  1
+CTI3 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00CBH  1
+_iic_mstart. . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+RD . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00B7H  1
+ENS1 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00DEH  1
+PCT0 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00F8H  1
+PCT1 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00F9H  1
+PCT2 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00FAH  1
+RI . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      0098H  1
+PCT3 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00FBH  1
+SI . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00DBH  1
+INT0 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00B2H  1
+CY . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00D7H  1
+TI . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      0099H  1
+INT1 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00B3H  1
+iic_sready . . . . . . . . . . . . . .  EXTERN   DATA   BIT      -----  1
+OV . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00D2H  1
+prompt . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      0000H  3
+x1_flag. . . . . . . . . . . . . . . .  EXTERN   DATA   BIT      -----  1
+main . . . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+  state. . . . . . . . . . . . . . . .  AUTO     XDATA  U_CHAR   0000H  1
+  counter. . . . . . . . . . . . . . .  AUTO     XDATA  U_INT    0001H  2
+  skip . . . . . . . . . . . . . . . .  AUTO     XDATA  U_CHAR   0003H  1
+WR . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00B6H  1
+_iic_init. . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+dirty. . . . . . . . . . . . . . . . .  PUBLIC   DATA   BIT      0000H  1
+_set_nlcd. . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+initialise . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+byte . . . . . . . . . . . . . . . . .  TYPEDEF  -----  U_CHAR   -----  1
+_iic_sset. . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+init_nlcd. . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+IE0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      0089H  1
+IE1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      008BH  1
+clr. . . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      0003H  3
+uint . . . . . . . . . . . . . . . . .  TYPEDEF  -----  U_INT    -----  2
+C51 COMPILER V3.40,  LCDPAD                                                                05/07/97  03:23:17  PAGE 15  
+
+NAME                                    CLASS   MSPACE  TYPE    OFFSET  SIZE
+====                                    =====   ======  ====    ======  ====
+
+
+signon1. . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      0006H  3
+signon2. . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      0009H  3
+CR0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00D8H  1
+CR1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00D9H  1
+node_map . . . . . . . . . . . . . . .  PUBLIC   XDATA  ARRAY    000CH  16
+ES0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00ACH  1
+ET0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00A9H  1
+ES1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00ADH  1
+_nputchar. . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+ET1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00ABH  1
+EAD. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00AEH  1
+TF0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      008DH  1
+ET2. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00EFH  1
+TF1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      008FH  1
+RB8. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      009AH  1
+proc_iic . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+  in . . . . . . . . . . . . . . . . .  AUTO     XDATA  CHAR     0000H  1
+EX0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00A8H  1
+IT0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      0088H  1
+iic_wait . . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+TB8. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      009BH  1
+EX1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00AAH  1
+IT1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      008AH  1
+P. . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00D0H  1
+init_nkey. . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+SM0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      009FH  1
+SM1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      009EH  1
+SM2. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      009DH  1
+PS0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00BCH  1
+PT0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00B9H  1
+PS1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00BDH  1
+PT1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00BBH  1
+PAD. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00BEH  1
+RS0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00D3H  1
+PT2. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00FFH  1
+TR0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      008CH  1
+RS1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00D4H  1
+TR1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      008EH  1
+PX0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00B8H  1
+PX1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00BAH  1
+_putchar . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+  out. . . . . . . . . . . . . . . . .  * REG *  DATA   CHAR     0007H  1
+proc_key . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+  retry. . . . . . . . . . . . . . . .  AUTO     XDATA  U_CHAR   0000H  1
+mes_off. . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      001CH  3
+modname. . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      001FH  3
+REN. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      009CH  1
+mes_con. . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      0022H  3
+STA. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00DDH  1
+test_key . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     -----  -----
+iic_in . . . . . . . . . . . . . . . .  PUBLIC   IDATA  ARRAY    0000H  2
+RXD. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00B0H  1
+iic_out. . . . . . . . . . . . . . . .  PUBLIC   IDATA  ARRAY    0002H  2
+TXD. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00B1H  1
+F0 . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00D5H  1
+STO. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00DCH  1
+_printf. . . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+err1 . . . . . . . . . . . . . . . . .  PUBLIC   XDATA  PTR      0025H  3
+ngetkey. . . . . . . . . . . . . . . .  EXTERN   CODE   PROC     -----  -----
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+C51 COMPILER V3.40,  LCDPAD                                                                05/07/97  03:23:17  PAGE 16  
+
+   CODE SIZE        =    573    ----
+   CONSTANT SIZE    =    140    ----
+   XDATA SIZE       =     40      12
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =      4    ----
+   BIT SIZE         =      1    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

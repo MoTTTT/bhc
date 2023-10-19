@@ -1,0 +1,1 @@
+lcdpad.obj,wdog.obj,portlcd.obj,cbkey.obj,iicdriv.obj,rtc.obj to lcdpad.abs ramsize(256) NOOVERLAY PRINT (lnk.lst)

@@ -1,0 +1,348 @@
+C51 COMPILER V3.40,  LCDPAD                                                                20/04/97  12:06:19  PAGE 1   
+
+
+DOS C51 COMPILER V3.40, COMPILATION OF MODULE LCDPAD
+OBJECT MODULE PLACED IN LCDPAD.OBJ
+COMPILER INVOKED BY: C:\C51\BIN\C51.EXE LCDPAD.F
+
+stmt level    source
+
+   1          /*			Copyright Q Solutions				*/
+   2          /*	File:		LcdPad.c					*/
+   3          /*	Programmer:	MoT						*/
+   4          /*	Project:	Borehole Controller				*/
+   5          /*	Module:		IIC Bus Keypad & Screen Module			*/
+   6          /*									*/
+   7          /*			History						*/
+   8          /* 17:29 30/03/1997	Written from scratch, using uNode Library	*/
+   9          /*			Initialisation and main loop.			*/
+  10          /* 11:35 12/04/1997 	uNode Library removed, code cleanup.		*/
+  11          /* 23:37 13/04/1997 	IIC Bus support added,				*/
+  12          /*			State machine implimented.			*/
+  13          
+  14          #pragma		ROM (COMPACT)
+  15          #pragma		SMALL
+  16          
+  17          /* Library files							*/
+  18          #include	<stdio.h>
+  19          #include	<reg552.h>
+  20          
+  21          /* Target Specific parameters. Change these to generate final ROM image	*/
+  22          #define 	LP_ADR	0x60		/* IIC Slave Address		*/
+  23          #define 	BHC_ADR	0x68		/* Main Controller Address	*/
+  24          #define		COLUMNS	16		/* Number of LCD Columns	*/
+  25          
+  26          typedef	unsigned int uint;		/* Optimise for size & speed:	*/
+  27          typedef	unsigned char byte;		/* Use unsigned char and int	*/
+  28          
+  29          #include	<cbkey.h>		/* Keypad Driver routines	*/
+  30          #include	<portlcd.h>		/* LCD routines			*/
+  31          #include	<iicdriv.h>		/* IIC Bus routines		*/
+  32          #include	<rtc.h>			/* Real time clock routines	*/
+  33          #include	<wdog.h>		/* Watchdog refresh		*/
+  34          
+  35          /* Local defines							*/
+  36          #define		S_IDLE	0x10		/* Idle State			*/
+  37          #define		S_000	0		/* Testing for peripherals	*/
+  38          #define		S_R00	1		/* RTC present			*/
+  39          #define		S_0K0	2		/* Keypad ACK			*/
+  40          #define		S_RK0	3		/* RTC, Keypad response		*/
+  41          #define		S_00L	4		/* LCD Control			*/
+  42          #define		S_R0L	5		/* RTC, LCD Control		*/
+  43          #define		S_0KL	6		/* BHC present, No RTC		*/
+  44          #define		S_RKL	7		/* Full Connection		*/
+  45          #define		S_SET	0x20		/* Changing settings, time etc	*/
+  46          #define		PING	100		/* Send dummy keycode		*/
+  47          const char *signon1= "    Borehole    ";/* Line 1 of sign on screen	*/
+  48          const char *signon2= "   Controller   ";/* Line 2 of signon screen	*/
+  49          const char *modname= "  LcdPad Module ";/* Header			*/
+  50          const char *mes_off= "Off Line        ";/* Off line message		*/
+  51          const char *mes_rtc= "Connect         ";/* Print Confirmation		*/
+  52          const char *mes_snd= "Sending:        ";/* Print Status			*/
+  53          const char *err_wr=  "   Write Error  ";/* Print Status			*/
+  54          
+  55          const char key_map[20]=	{ 'C', 'E', '.', '0', '*',	/* Keycode to	*/
+  56          			  'D', 'U', '9', '8', '7',	/* character	*/
+  57          			  126, 127, '6', '5', '4',	/* mapping	*/
+  58          			  'O', 'R', '3', '2', '1' };
+  59          
+C51 COMPILER V3.40,  LCDPAD                                                                20/04/97  12:06:19  PAGE 2   
+
+  60          bit		dirty= 1;		/* Sreen repaint flag		*/
+  61          char idata	iic_in[2];		/* IIC Bus input buffer		*/
+  62          char idata	iic_out[2];		/* IIC Bus output buffer	*/
+  63          byte		state= S_IDLE;		/* LcdPad state variable	*/
+  64          
+  65          void	initialise	( )		/* Initialise Hardware		*/
+  66          {
+  67   1      char	i= 1;
+  68   1      	EA	= 1;			/* ENABLE GLOBAL INT		*/
+  69   1      	init_plcd	( );		/* Initialise LCD on port SCREEN*/
+  70   1      	while		( i++ );	/* Wait for LCD to reset	*/
+  71   1      	init_cbkey	( );		/* Initialise cross bar switch	*/
+  72   1      	iic_init	( LP_ADR );	/* Initialise IIC Bus		*/
+  73   1      	iic_sset	( iic_in, 2 );	/* Set up slave input buffer	*/
+  74   1      }
+  75          
+  76          char	putchar		( char out )
+  77          {
+  78   1      	return	( pputchar ( out ) );
+  79   1      }
+  80          
+  81          void	proc_iic	( )
+  82          {
+  83   1      	switch	( iic_in[0] )		/* Command			*/
+  84   1      	{
+  85   2      	case 0:	init_plcd( );		/* Set LCD to defaults		*/
+  86   2      		break;
+  87   2      	case 1:	set_plcd( iic_in[1] );	/* Write LCD control		*/
+  88   2      		break;
+  89   2      	case 2: pputchar( iic_in[1] );	/* Write LCD data		*/
+  90   2      		break;
+  91   2      	case 3: break;			/* Read LCD control		*/
+  92   2      	case 4: break;			/* Read LCD data		*/
+  93   2      	default:
+  94   2      		break;
+  95   2      	}
+  96   1      	iic_sready=	0;		/* Clear slave reception flag	*/
+  97   1      }
+  98          
+  99          bit	proc_key	( )		/* Read and process keypad	*/
+ 100          {
+ 101   1      	iic_out[0]= 	read_cbkey( );	/* Read key from keypad		*/
+ 102   1      	iic_mstart (BHC_ADR,1,iic_out);	/* Send it to BHC		*/
+ 103   1      	if	( !iic_wait( ) )	/* No reply			*/
+ 104   1      		return	( 1 );		/* Return error			*/
+ 105   1      	return	( 0 );
+ 106   1      }
+ 107          
+ 108          void	paint	( char *l1, char *l2 )	/* Draw Screen			*/
+ 109          {
+ 110   1      	if	( dirty )		/* Only if necessary		*/
+ 111   1      	{
+ 112   2      		set_plcd( LCD_L1 );	/* Goto Line 1			*/
+ 113   2      		printf	( l1 );		/* Print first string		*/
+ 114   2      		set_plcd( LCD_L2 );	/* Goto Line 2			*/
+ 115   2      		printf	( l2 );		/* Print second string		*/
+ 116   2      		dirty= 0;		/* Done				*/
+ 117   2      	}
+ 118   1      }
+ 119          
+ 120          char	test_key	( )		/* Check for keypad acknowledge	*/
+ 121          {
+ 122   1      	iic_out[0]= 	PING;		/* Send dummy key		*/
+ 123   1      	iic_mstart	( BHC_ADR, 1, iic_out );
+ 124   1      	return		( iic_wait( ));	/* If no reply: Return Error	*/
+ 125   1      }
+C51 COMPILER V3.40,  LCDPAD                                                                20/04/97  12:06:19  PAGE 3   
+
+ 126          
+ 127          void	main	( void )		/* Main Loop			*/
+ 128          {
+ 129   1      uint	counter= 0;			/* Routine cycle counter	*/
+ 130   1      byte	skip= 0;			/* Test periph every 256 loops	*/
+ 131   1         initialise	( );			/* Set up drivers		*/
+ 132   1         while	( 1 )			/* Do the following forever	*/
+ 133   1         {
+ 134   2      	wdog	( 100 );		/* Refresh the Watchdog timer	*/
+ 135   2      	switch	( state )		/* Act appropriate to state	*/
+ 136   2      	{
+ 137   3      	case S_IDLE:			/* Display Product Name		*/
+ 138   3      		paint(signon1,signon2);	/* Print intro 			*/
+ 139   3      		if	( newkey )	/* Check for keypress		*/
+ 140   3      		{
+ 141   4      			read_cbkey ( );	/* Flush buffer			*/
+ 142   4      			state= S_000;	/* Test for system status	*/
+ 143   4      			dirty= 1;	/* Repaint screen		*/
+ 144   4      		}
+ 145   3      		break;
+ 146   3      	case S_000:			/* Off Line; Test system status	*/
+ 147   3      		paint(modname,mes_off);	/* Print Status			*/
+ 148   3      		set_plcd( LCD_L2+ 9 );	/* Goto line 2			*/
+ 149   3      		printf	("%4u",counter);/* Show some activity		*/
+ 150   3      		if	( !skip )	/* Only test every 256 cycles	*/
+ 151   3      		{
+ 152   4      			if (init_rtc())	/* Check for Real Time Clock	*/
+ 153   4      			{
+ 154   5      				state= S_R00;	/* Change state		*/
+ 155   5      				dirty= 1;	/* Repaint screen	*/
+ 156   5      				break;
+ 157   5      			}
+ 158   4      			if (test_key())	/* Check for Keypad acknowledge	*/
+ 159   4      			{
+ 160   5      				state= S_0K0;	/* Change state		*/
+ 161   5      				dirty= 1;	/* Repaint screen	*/
+ 162   5      				break;
+ 163   5      			}
+ 164   4      		}
+ 165   3      		if	( iic_sready )	/* Check for LCD Control	*/
+ 166   3      		{
+ 167   4      			state= S_00L;
+ 168   4      			break;
+ 169   4      		}
+ 170   3      		if	( test_cbkey())	/* Check for keypress		*/
+ 171   3      		{
+ 172   4      			read_cbkey ( );	/* Flush buffer			*/
+ 173   4      			state= S_IDLE;	/* Print "About"		*/
+ 174   4      			dirty= 1;	/* Repaint screen		*/
+ 175   4      		}
+ 176   3      		break;
+ 177   3      	case S_R00:			/* RTC present			*/
+ 178   3      		paint(modname, mes_rtc);/* Print Confirmation		*/
+ 179   3      		set_plcd( LCD_L2+ 8 );	/* Go to line 2			*/
+ 180   3      		if	(! show_time())	/* Print the time		*/
+ 181   3      		{
+ 182   4      			state= S_000;	/* Change state			*/
+ 183   4      			dirty= 1;	/* Repaint screen		*/
+ 184   4      			break;
+ 185   4      		}
+ 186   3      		if	( !skip )	/* Only test every 256 cycles	*/
+ 187   3      		{
+ 188   4      			if (test_key())	/* Check for Keypad acknowledge	*/
+ 189   4      			{
+ 190   5      				state= S_RK0;	/* Change State		*/
+ 191   5      				dirty= 1;	/* Repaint screen	*/
+C51 COMPILER V3.40,  LCDPAD                                                                20/04/97  12:06:19  PAGE 4   
+
+ 192   5      				break;
+ 193   5      			}
+ 194   4      		}
+ 195   3      		if	( iic_sready )	/* Check for LCD Control	*/
+ 196   3      		{
+ 197   4      			state= S_R0L;
+ 198   4      			dirty= 1;
+ 199   4      			break;
+ 200   4      		}
+ 201   3      		if	( newkey )	/* Check for keypress		*/
+ 202   3      		{
+ 203   4      			read_cbkey ( );	/* Flush buffer			*/
+ 204   4      			state= S_IDLE;	/* Print "About"		*/
+ 205   4      			dirty= 1;	/* Repaint screen		*/
+ 206   4      			break;
+ 207   4      		}
+ 208   3      		break;
+ 209   3      	case S_0K0:			/* Keypad ACK			*/
+ 210   3      		paint(modname, mes_snd);/* Print Confirmation		*/
+ 211   3      		if	( iic_sready )	/* Check for LCD Control	*/
+ 212   3      		{
+ 213   4      			state= S_0KL;	/* Change state			*/
+ 214   4      			break;
+ 215   4      		}
+ 216   3      		if	( !skip )	/* Only test every 256 cycles	*/
+ 217   3      		{
+ 218   4      			if (init_rtc())	/* Check for Real Time Clock	*/
+ 219   4      			{
+ 220   5      				state= S_RK0;	/* Change state		*/
+ 221   5      				dirty= 1;	/* Repaint screen	*/
+ 222   5      				break;
+ 223   5      			}
+ 224   4      		}
+ 225   3      		if	(test_cbkey())	/* Check for keypress		*/
+ 226   3      		{
+ 227   4      			if (proc_key())	/* Process, check for error	*/
+ 228   4      			{
+ 229   5      			   state= S_000;/* No acknowledge		*/
+ 230   5      			   dirty= 1;	/* Refresh screen		*/
+ 231   5      			}
+ 232   4      		}
+ 233   3      		break;
+ 234   3      	case S_RK0:			/* RTC, Keypad response		*/
+ 235   3      		paint(modname, mes_snd);/* Print Confirmation		*/
+ 236   3      		if	( iic_sready )	/* Check for LCD Control	*/
+ 237   3      		{
+ 238   4      			state= S_RKL;
+ 239   4      			break;
+ 240   4      		}
+ 241   3      		if	( test_cbkey())	/* Check for keypress		*/
+ 242   3      		{
+ 243   4      			if (proc_key())	/* Process, check for error	*/
+ 244   4      			{
+ 245   5      			   state= S_R00;/* Change state			*/
+ 246   5      			   dirty= 1;	/* Refresh screen		*/
+ 247   5      			}
+ 248   4      		}
+ 249   3      		break;
+ 250   3      	case S_0KL:			/* BHC present, No RTC		*/
+ 251   3      	case S_RKL:			/* Full Connection		*/
+ 252   3      		if	( iic_sready )	/* Incoming LCD Command		*/
+ 253   3      			proc_iic ( );	/* Process it			*/
+ 254   3      		if	( test_cbkey())	/* Keypress			*/
+ 255   3      		{
+ 256   4      			if (proc_key())	/* Process, check for error	*/
+ 257   4      			{
+C51 COMPILER V3.40,  LCDPAD                                                                20/04/97  12:06:19  PAGE 5   
+
+ 258   5      			   state= S_R0L;/* Change state			*/
+ 259   5      			   dirty= 1;	/* Repaint screen		*/
+ 260   5      			}
+ 261   4      		}
+ 262   3      		break;
+ 263   3      	case S_R0L:			/* RTC, LCD Control		*/
+ 264   3      		paint(modname, err_wr);	/* Print Confirmation		*/
+ 265   3      		if	( iic_sready )	/* Incoming LCD Command		*/
+ 266   3      			proc_iic ( );	/* Process it			*/
+ 267   3      		if	( !skip )	/* Only test every 256 cycles	*/
+ 268   3      		{
+ 269   4      			if( test_key( ))/* Check for Keypad acknowledge	*/
+ 270   4      			{
+ 271   5      				state= S_RKL;	/* Change state		*/
+ 272   5      				break;
+ 273   5      			}
+ 274   4      		}
+ 275   3      		if	( test_cbkey())	/* Check for keypress		*/
+ 276   3      		{
+ 277   4      			read_cbkey ( );	/* Flush buffer			*/
+ 278   4      			dirty= 1;	/* Repaint screen		*/
+ 279   4      		}
+ 280   3      		break;
+ 281   3      	case S_00L:			/* LCD Control			*/
+ 282   3      		paint(modname, err_wr);	/* Print Confirmation		*/
+ 283   3      		if	( iic_sready )	/* Incoming LCD Command		*/
+ 284   3      			proc_iic ( );	/* Process it			*/
+ 285   3      		if	( !skip )	/* Only test every 256 cycles	*/
+ 286   3      		{
+ 287   4      			if (init_rtc())	/* Check for Real Time Clock	*/
+ 288   4      			{
+ 289   5      				state= S_R0L;	/* Change State		*/
+ 290   5      				dirty= 1;	/* Repaint screen	*/
+ 291   5      				break;
+ 292   5      			}
+ 293   4      			if (test_key())	/* Check for Keypad acknowledge	*/
+ 294   4      			{
+ 295   5      				state= S_0KL;	/* Change State		*/
+ 296   5      				break;
+ 297   5      			}
+ 298   4      		}
+ 299   3      		if	( test_cbkey())	/* Check for keypress		*/
+ 300   3      		{
+ 301   4      			read_cbkey ( );	/* Flush buffer			*/
+ 302   4      			dirty= 1;	/* Repaint screen		*/
+ 303   4      		}
+ 304   3      		break;
+ 305   3      	default:
+ 306   3      		state= S_IDLE;
+ 307   3      		break;
+ 308   3      	}
+ 309   2      	skip++;				/* Increment test skip		*/
+ 310   2      	if	( ++counter >9999 )	/* Increment loop counter	*/
+ 311   2      	{
+ 312   3      		counter= 0;
+ 313   3      	}
+ 314   2          }
+ 315   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    693    ----
+   CONSTANT SIZE    =    123    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     42      10
+C51 COMPILER V3.40,  LCDPAD                                                                20/04/97  12:06:19  PAGE 6   
+
+   IDATA SIZE       =      4    ----
+   BIT SIZE         =      1    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

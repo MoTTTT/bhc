@@ -1,0 +1,511 @@
+#include <bios.h>
+#include <dir.h>
+#include <dos.h>
+#include <math.h>
+#include <conio.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include <string.h>
+#include <time.h>
+#include <graphics.h>
+
+#include "c:\include\c_incl\kbd_char.h"
+#include "c:\weerstas\weer.h"
+
+#define RADIUS 9
+#define MAKS_INT 16
+#define MAKS_ALARM_LEV 16
+
+extern int MaxX, MaxY, ModeGI;
+extern int Waardes[];
+extern int MaksGIA[];
+extern int UnitsGIA[ MAKS_ALARM_LEV];
+
+int alarm_levels[ MAKS_ALARM_LEV*2];
+char *Lang_strings[]=
+	 {
+	 " PH",
+	 " L/sec",
+	 "METER",
+	 "%",
+	 };
+
+pump_position(xpos, ypos, position)
+int xpos, ypos;
+char position;
+	{
+#define x_l 5
+#define y_l 5
+
+	setcolor ( WHITE);
+	setfillstyle ( SOLID_FILL, LIGHTGRAY);
+	if ( position == 'c')
+		{
+		setcolor(LIGHTRED);
+		setfillstyle ( SOLID_FILL, LIGHTRED);
+		} else if ( position == 'o')
+			{
+			setcolor(GREEN);
+			setfillstyle ( SOLID_FILL, LIGHTGREEN);
+			}
+	bar ( xpos, ypos, xpos+x_l, ypos+y_l);
+	}
+
+float flow_rate( waarde)
+	{
+	float value;
+	value = (float)Waardes[waarde];
+	value *= 980;/*1000*/
+	value /=60;
+	return(value);
+	}
+
+int	pump_on ( position)
+	{
+	if (position > 0)
+			return(1);
+		else if ( position < 0)
+			return (3);
+		else return(0);
+	}
+
+valueconfersion(int Units, char *String, char *AddOnCP)
+	{
+	float TempF;
+
+	TempF = Waardes[Units];
+	TempF /= MaksGIA[Units];
+	TempF *= UnitsGIA[Units];
+	sprintf ( String, "%3.1f%s",  TempF, AddOnCP);
+	}
+
+int Valueconfersion(int Units )
+	{
+	float TempF;
+	int ReturnI;
+
+	TempF = Waardes[Units];
+	TempF /= MaksGIA[Units];
+	TempF *= UnitsGIA[Units];
+	ReturnI = (int) TempF;
+	return( ReturnI);
+	}
+display_data( )
+	{
+	enum { SOF3=0,SOF2=2,SOF1=4,TREAT_PH=6, PUMP_AWAY=8, WASTE_O=10,\
+	MEG25=12, DE_GAS=14, MEG1=16, ACUASTI=18};
+	char date_buf[256], p_pos[]= "con";
+	int txpos, xpos,test;
+	int TempI;
+	float barv_length, value;
+
+	for ( txpos=0; txpos<MAKS_INT; txpos++)
+		{
+		if( Waardes[txpos] >  MaksGIA[ txpos])
+			 Waardes[txpos] =  MaksGIA[ txpos];
+		}
+
+	txpos = 373;
+
+	display_level( 31       , 219       ,141,119, SOF3, 6, val_con(0 , MaksGIA[0]), 'l');
+	valueconfersion( 0, date_buf, "");
+	Outtextxy (  100 , 150 , date_buf, 4);
+
+	display_level( 449      , 57+80     , 70, 70, SOF3, 2, val_con(1 , MaksGIA[1]), 'l');
+	valueconfersion( 1, date_buf, "");
+	Outtextxy (  475 ,  97 , date_buf, 3);
+
+	display_level( 545      , 325       ,  7, 84, SOF3, 14, val_con(13 ,MaksGIA[13]), 't');
+	valueconfersion( 13, date_buf," Ph");
+	Outtextxy (  570 , 280 , date_buf, 7);
+
+
+	/**  vlei - main res flow **/
+	valueconfersion( 2, date_buf," L/s");
+	Outtextxy ( 25, 280, date_buf, 8);
+
+	/** vlei - to res flow **/
+	valueconfersion( 3, date_buf," L/s");
+	Outtextxy ( 160, 280, date_buf, 8);
+
+	/** vlei level **/
+	valueconfersion( 12, date_buf," M");
+	Outtextxy ( 190, 420, date_buf, 8);
+
+	/** resort flow **/
+	valueconfersion( 4, date_buf," L/s");
+	Outtextxy ( 400, 180, date_buf, 8);
+
+	/** head flow meter **/
+	valueconfersion( 5, date_buf," L/s");
+	Outtextxy ( 445, 295, date_buf, 9);
+
+	/** head pressure **/
+	valueconfersion( 6, date_buf," Kpa");
+	Outtextxy ( 445, 265, date_buf, 10);
+
+/** MUX pumps **/
+/** Vlei  2  **/
+	TempI = Waardes[18]>>4;
+	TempI&= 0xf;
+	HighliftPumps(   9, 340, TempI );
+
+/** Vlei  1 **/
+	TempI = Waardes[18];
+	TempI&= 0xf;
+	HighliftPumps(  175, 340, TempI );
+
+	TempI= Waardes[16] & 0xf;
+	HighliftPumps(  260, 160, TempI );
+
+	TempI = Waardes[16] >>4;
+	TempI&= 0xf;
+	HighliftPumps(  260, 250, TempI );
+
+	TempI= Waardes[17] & 0xf;
+	HighliftPumps(  260, 310, TempI );
+
+/** resort pump pressure **/
+	valueconfersion( 7, date_buf," Kpa");
+	Outtextxy ( 330, 140, date_buf, 10);
+	xpos= pump_on ( Waardes[16]&1);
+	pump_position( 357, 150, p_pos[xpos]);
+
+/** High lift 1 pump pressure **/
+	valueconfersion( 8, date_buf," Kpa");
+	Outtextxy ( 330, 240, date_buf, 10);
+	xpos= pump_on ( (Waardes[16]>>4)&1);
+	pump_position( 357, 250, p_pos[xpos]);
+
+/** High  Lift 2 pump pressure **/
+	valueconfersion( 9, date_buf," Kpa");
+	Outtextxy ( 330, 300, date_buf, 10);
+	xpos= pump_on ( Waardes[17]&1);
+	pump_position( 357, 310, p_pos[xpos]);
+
+/** vlei - main pump pressure vlei 2**/
+	valueconfersion( 10, date_buf," Kpa");
+	Outtextxy ( 5, 320, date_buf, 10);
+	xpos= pump_on ( Waardes[18]&1);
+	pump_position( 137, 340, p_pos[xpos]);
+
+/** vlei to resort pump pressure vlei 1**/
+	valueconfersion( 11, date_buf," Kpa");
+	Outtextxy ( 160, 310, date_buf, 10);
+	xpos= pump_on ( (Waardes[18]>>4)&1);
+	pump_position(  80, 340, p_pos[xpos]);
+
+	xpos= pump_on ( (Waardes[19])&1); /** chlorine **/
+	pump_position( 311, 362, p_pos[xpos]);
+
+	xpos= pump_on ( (Waardes[19])&2);  /** caustic soda **/
+	pump_position( 377, 434, p_pos[xpos]);
+
+	xpos= pump_on ( (Waardes[19])&4);
+	pump_position( 70, 255, p_pos[xpos]);
+
+	xpos= pump_on ( (Waardes[19])&8);
+	pump_position( 610, 470, p_pos[xpos]);
+
+	}
+
+Outtextxy ( xpos, tpos, string, length)
+int xpos, tpos, length;
+char *string;
+	{
+	int char_height, char_width, bk_color, f_color;
+	struct viewporttype tmp_post;
+
+	getviewsettings( &tmp_post);
+	char_height = textheight("H");
+	char_width  = textwidth("H");
+	setviewport( xpos, tpos, xpos+(length*char_width), tpos+char_height,1);
+	bk_color = getbkcolor();
+	f_color  = getcolor();
+	setcolor(EGA_YELLOW);
+	clearviewport();
+	outtextxy( 1,1, string);
+	setbkcolor (bk_color);
+	setcolor   (f_color);
+	setviewport( tmp_post.left , tmp_post.top   ,\
+							 tmp_post.right, tmp_post.bottom, tmp_post.clip );
+
+	}
+							 /* xpos, ypos, width, hight, level*/
+display_level( bar_left, bar_bottom, width, hight, alarm, maks, level, type)
+int bar_left, bar_bottom, width, hight,maks,alarm, level;
+char type;
+	{
+
+	char text[100];
+	int barh_left = bar_left+1, barh_top = bar_bottom-hight;
+	int barh_right = bar_left+width, barh_posb, barh_post;
+	float devider= (float) hight /100;
+
+	if ( type == 'l')
+		{
+		setfillstyle ( SOLID_FILL, EGA_BLUE);
+		bar( bar_left+2, barh_top ,barh_right-1, bar_bottom );
+		}else
+			 {
+			 setfillstyle ( SOLID_FILL, WHITE);
+			 bar( bar_left, barh_top ,barh_right, bar_bottom );
+			 }
+	if ( level > alarm_levels[alarm+1] )
+		setfillstyle ( SOLID_FILL, LIGHTRED);
+	if ( level < alarm_levels[alarm])
+		setfillstyle ( SOLID_FILL, LIGHTRED);
+
+	if ( level > alarm_levels[alarm+1] &&  level < alarm_levels[alarm])
+		setfillstyle ( SOLID_FILL, LIGHTGREEN);
+
+	barh_post = bar_bottom -(level*devider);
+	bar( barh_left+1,bar_bottom, bar_left+width-1, barh_post);
+	devider *=50;
+	setcolor( EGA_LIGHTCYAN);
+	barh_right +=3;
+	outtextxy( barh_right, bar_bottom-4, "0");
+	sprintf( text,"%d", maks);
+	outtextxy( barh_right, barh_top, text);
+	sprintf( text,"%d", maks/2);
+	outtextxy( barh_right, bar_bottom-devider, text);
+
+	}
+
+arrow( xpos,ypos, direction)
+int xpos, ypos;
+char direction;
+	{
+	if ( direction =='d')
+		{
+		line( xpos-4, ypos-5, xpos  , ypos);
+		line( xpos,   ypos  , xpos+4, ypos-5);
+		}else if ( direction == 'u')
+			{
+			line( xpos-4, ypos+5, xpos  , ypos);
+			line( xpos,   ypos  , xpos+4, ypos+5);
+			} else if ( direction == 'r')
+				{
+				line( xpos, ypos, xpos-5  , ypos-4);
+				line( xpos, ypos, xpos-5, ypos+4);
+				} else if ( direction == 'l')
+					{
+					line( xpos, ypos, xpos+5, ypos-4);
+					line( xpos, ypos, xpos+5, ypos+4);
+					}
+	}
+
+draw_pumps( xpos, ypos, pumps)
+	{
+	int minus = 30-(2*RADIUS), counter;
+
+	if ( pumps >1)
+		{
+		line( xpos+5, ypos, xpos+5, (ypos+(pumps-1)*30) +30);
+		line( xpos-(minus+(4*RADIUS))-15,\
+				ypos, (xpos-(minus+(4*RADIUS)))-15, (ypos+(pumps-1)*30)+30);
+		} else
+			{
+			line( xpos, ypos, xpos, ypos+(pumps-1)*30);
+			line( xpos-(minus+(4*RADIUS))-15,\
+				ypos, (xpos-(minus+(4*RADIUS)))-15, ypos+(pumps-1)*30);
+			}
+	for ( counter = 0; counter<pumps; counter++)
+		{
+		line( xpos-5, ypos, xpos-5, ypos-5);
+		rectangle(  xpos-8,ypos-5,xpos-2,ypos-15);
+		line( xpos+5, ypos, xpos-minus, ypos);
+		circle(  xpos-(minus+RADIUS), ypos, RADIUS);
+		circle(  xpos-(minus+(3*RADIUS)), ypos, RADIUS);
+		outtextxy ( xpos-(minus+RADIUS)-2, ypos-2, "M");
+		outtextxy ( xpos-(minus+(3*RADIUS))-2, ypos-2, "P");
+		line( xpos-(minus+(4*RADIUS)), ypos, (xpos-(minus+(4*RADIUS))-15), ypos);
+		ypos+=60;
+		}
+	}
+
+draw_pumps_vert( xpos, ypos, pumps)
+	{
+	int minus = 24-(2*RADIUS), counter;
+
+	line( xpos, ypos, xpos+((pumps-1)*24), ypos-15);
+	line( xpos, ypos+(4*RADIUS)+(2*minus), xpos+(pumps-1)*24,\
+				 ypos+(4*RADIUS)+(2*minus));
+	for ( counter = 0; counter<pumps; counter++)
+		{
+		line( xpos, ypos, xpos, ypos+minus);
+		line( xpos, ypos-5, xpos-5, ypos-5);
+		rectangle(  xpos-5,ypos-8,xpos-20,ypos-2);
+		circle(  xpos, ypos+RADIUS+minus, RADIUS);
+		circle(  xpos, ypos+(3*RADIUS)+minus, RADIUS);
+		line( xpos, ypos+(4*RADIUS)+minus, xpos, ypos+(4*RADIUS)+(2*minus));
+		outtextxy ( xpos-3, ypos+RADIUS+minus-1    , "M");
+		outtextxy ( xpos-3, ypos+(3*RADIUS)+minus-1, "P");
+		xpos+=24;
+		}
+	}
+
+draw_tank( xpos, ypos, xl, yl)
+int xpos, ypos, xl,yl;
+	{
+
+	struct linesettingstype my_settings;
+
+	getlinesettings (&my_settings);
+	setlinestyle( my_settings.linestyle,my_settings.upattern ,THICK_WIDTH);
+	line( xpos, ypos,xpos, ypos+yl);
+	line( xpos,ypos+yl,xpos+xl,ypos+yl);
+	xpos +=xl;
+	line( xpos, ypos, xpos, ypos+yl);
+	setlinestyle( my_settings.linestyle,my_settings.upattern ,my_settings.thickness );
+	}
+
+draw_tank_round( xpos, ypos, xl, yl)
+int xpos, ypos, xl,yl;
+	{
+
+	int rr =9;
+	struct linesettingstype my_settings;
+
+	getlinesettings (&my_settings);
+	setlinestyle( my_settings.linestyle,my_settings.upattern ,THICK_WIDTH);
+	line( xpos, ypos+rr,xpos, ypos+(yl-rr));
+	arc( xpos+rr, ypos+rr, 90, 180, rr);
+	setlinestyle( my_settings.linestyle,my_settings.upattern ,THICK_WIDTH);
+	line( xpos+rr,ypos+1,xpos+(xl-(2*rr)),ypos+1);
+	arc( (xpos+xl)-(2*rr), ypos+rr, 0, 90, rr);
+	setlinestyle( my_settings.linestyle,my_settings.upattern ,THICK_WIDTH);
+	line( xpos+xl-rr-1, ypos+rr, xpos+xl-rr-1, (ypos+yl) -rr);
+	line( xpos+rr,ypos+yl,xpos+(xl-(2*rr)),ypos+yl);
+	arc( xpos+rr, ypos+yl-rr, 180, 270, rr);
+	setlinestyle( my_settings.linestyle,my_settings.upattern ,THICK_WIDTH);
+	arc( (xpos+xl)-2*rr, ypos+yl-rr, 270, 360, rr);
+	setlinestyle( my_settings.linestyle,my_settings.upattern ,my_settings.thickness );
+	}
+
+draw_valve(xpos, ypos, type, dir)
+int  xpos, ypos, type;
+char dir;
+	{
+	if ( dir == 'h')
+		{
+		line( xpos, ypos,  xpos+15, ypos+15);
+		line( xpos, ypos+15,  xpos, ypos);
+		line( xpos+15, ypos+15,  xpos+15, ypos);
+		line( xpos, ypos+15,  xpos+15, ypos);
+		line( xpos+7, ypos+7,  xpos+7, ypos-4);
+		if ( type ==1)
+			line( xpos+2, ypos-4,  xpos+13, ypos-4);
+		else
+			 rectangle( xpos+2, ypos-4, xpos+13, ypos-7);
+		} else
+			{
+			line( xpos, ypos,  xpos+15, ypos);
+			line( xpos, ypos,  xpos+15, ypos+15);
+			line( xpos+15, ypos,  xpos, ypos+15);
+			line( xpos, ypos+15,  xpos+15, ypos+15);
+			line( xpos+7, ypos+7,  xpos+16, ypos+7);
+			if ( type ==1)
+				line( xpos+16, ypos+2,  xpos+16, ypos+13);
+			else
+				 rectangle( xpos+16, ypos+2, xpos+20, ypos+13);
+			}
+	}
+OuttextXY ( xpos, tpos, string, length, color)
+int xpos, tpos, length, color;
+char *string;
+	{
+	int char_height, char_width, bk_color, f_color;
+	struct viewporttype tmp_post;
+
+	setcolor(color);
+	getviewsettings( &tmp_post);
+	char_height = textheight("H");
+	char_width  = textwidth("H");
+	setviewport( xpos, tpos-2, xpos+(length*char_width)+3, tpos+char_height+4,1);
+	bk_color = getbkcolor();
+	f_color  = getcolor();
+	clearviewport();
+/*	setbkcolor( LIGHTGRAY);*/
+	outtextxy( 1,3, string);
+ setbkcolor (bk_color);
+	setcolor   (f_color);
+	setviewport( tmp_post.left , tmp_post.top   ,\
+							 tmp_post.right, tmp_post.bottom, tmp_post.clip );
+
+	}
+
+HighliftPumps(int XposI,int YposI,int PumpI)
+	{
+	char PumpPositionCA[][9] = {
+		"   ON   ",
+		"  FAULT ",
+		" MANUAL ",
+		"  AUTO  ",
+		"   OFF  ",
+		" NORMAL ",
+		"ABNORMAL"
+		};
+
+	XposI -=5;
+	setcolor(YELLOW);
+	rectangle ( XposI-2,YposI-3,XposI+68, YposI+24);
+
+	 switch( PumpI &0x02)
+		 {
+		 case 0:
+		 OuttextXY (  XposI, YposI, PumpPositionCA[1], 8, LIGHTRED);
+		 break;
+		 default:
+		 OuttextXY (  XposI, YposI, PumpPositionCA[5], 8, GREEN);
+		 break;
+		 }
+	 switch( PumpI & 0x0c)
+		 {
+		 case 4:
+		 OuttextXY (  XposI, YposI+11, PumpPositionCA[2], 8, LIGHTRED);
+		 break;
+		 case 8:
+		 OuttextXY (  XposI, YposI+11, PumpPositionCA[3], 8, GREEN);
+		 break;
+		 default:
+		 OuttextXY (  XposI, YposI+11, PumpPositionCA[6], 8, LIGHTRED);
+		 break;
+		 }
+	}
+
+bore_hole_pos()
+	{
+	int counter, T_color, xpos=76, pos1, pos, shift=1;
+
+	T_color = getcolor();
+	pos1 = Waardes[ 17]>>4;
+	pos =pos1 & shift;
+	for( counter =0; counter <3; counter++)
+		{
+		if ( pos ==0)
+			{
+			setcolor ( LIGHTRED);
+			setfillstyle ( SOLID_FILL, LIGHTRED);
+			} else if ( pos >0)
+			{
+			setcolor( LIGHTGREEN);
+			setfillstyle ( SOLID_FILL, LIGHTGREEN);
+			} else
+				{
+				setcolor(LIGHTGRAY);
+				setfillstyle ( SOLID_FILL, LIGHTGRAY);
+				}
+		pieslice( xpos, 55, 0, 360, 5);
+		setcolor( WHITE);
+		circle( xpos, 55, 5);
+		xpos +=25;
+		}
+	pos1 = Waardes[ 17]>>4;
+/*	gotoxy(1,1);
+	printf( "%d", pos1);
+*/
+	HighliftPumps( 150 ,40,pos1);
+	setcolor( T_color);
+	}

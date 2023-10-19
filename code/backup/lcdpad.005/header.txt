@@ -1,0 +1,8 @@
+/*			Copyright Q Solutions				*/
+/*	File:								*/
+/*	Programmer:	MoT						*/
+/*	Module:					*/
+/*									*/
+/*			History						*/
+/* 20:14 12/04/1997 	Cleanup						*/
+/*									*/

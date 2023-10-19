@@ -1,0 +1,98 @@
+C51 COMPILER V3.40,  BHC                                                                   29/03/98  13:58:10  PAGE 1   
+
+
+DOS C51 COMPILER V3.40, COMPILATION OF MODULE BHC
+OBJECT MODULE PLACED IN BHC.OBJ
+COMPILER INVOKED BY: C:\C51\BIN\C51.EXE BHC.C CODE SYMBOLS DEBUG OBJECTEXTEND
+
+stmt level    source
+
+   1          /*			Copyright Q Solutions				*/
+   2          /*	File:		bhc.c						*/
+   3          /*	Programmer:	MoT						*/
+   4          /*	Project:	Borehole Controller				*/
+   5          /*	Module:		Main Controller Module				*/
+   6          /*									*/
+   7          /*			History						*/
+   8          /* 00:08 21/04/1997 	Written from scratch				*/
+   9          /* 11:29am 07-01-1997 	Source lines: 1262	(not incl library)	*/
+  10          /* 11:41am 07-13-1997  	Source lines: 1505	(library: 1464 lines)	*/
+  11          /*			First beta release: V0.01			*/
+  12          /*									*/
+  13          
+  14          /*			Compiler Directives				*/
+  15          #pragma		ROM (COMPACT)
+  16          #pragma		LARGE
+  17          /*			Standard Library Header Files			*/
+  18          #include	<stdio.h>
+  19          #include	<reg552.h>
+  20          /*			uNode Library Header Files			*/
+  21          typedef	unsigned int uint;		/* Optimise for size & speed:	*/
+  22          typedef	unsigned long ulong;		/* Optimise for size & speed:	*/
+  23          #ifndef	BYTETYPE
+  24          #define BYTETYPE
+  25          typedef	unsigned char byte;		/* Use unsigned char and int	*/
+  26          #endif
+  27          #include	<rtc.h>			/* Real time clock routines	*/
+  28          #include	<time.h>		/* Time related routines	*/
+  29          #include	<ce.h>			/* Control Engine routines	*/
+  30          #include	<wdog.h>		/* Watchdog refresh routine	*/
+  31          #include	"ui.c"			/* Include User Interface Code	*/
+*** ERROR 237 IN LINE 54 OF UI.C: '_io_print': function already has a body
+*** ERROR 237 IN LINE 68 OF UI.C: '_db_print': function already has a body
+*** ERROR 237 IN LINE 79 OF UI.C: 'db_log': function already has a body
+  32          
+  33          sbit BHC_TEST= 0xC6;			/* UI Timing Test Point		*/
+  34          
+  35          void	initialise	( )		/* Initialise Hardware		*/
+  36          {
+  37   1      	EA=		1;		/* Enable Global Interrupt	*/
+  38   1      	BHC_TEST=	0;		/* Clear UI Timing Test point	*/
+  39   1      	PCON|=		0x80;		/* Double Baud Rate		*/
+  40   1      	init_ce		( );		/* Initialise Control Engine	*/
+  41   1      	init_serial	( B192 );	/* Initialise Serial Port	*/
+  42   1      	init_iic	( BHC_ADR );	/* Initialise I2C Bus 		*/
+  43   1      	init_rtc	( );		/* Initialise Real Time Clock	*/
+  44   1      	init_rkpad	( );		/* Initialise I2C Keypad	*/
+  45   1      	init_i2clcd	( );		/* Initialise I2C Bus LCD	*/
+  46   1      	ce_sig		( S_PT );	/* Toggle Power LED		*/
+  47   1      	get_time	( &ce_t0 );	/* Store CE startup time	*/
+  48   1      }
+  49          
+  50          void	proc_db	( void )		/* Database Log Processor	*/
+  51          {
+  52   1      	db_flag= 0;			/* Reset timer flag		*/
+  53   1      	out_stream=	IO_232;		/* Print to serial port		*/
+  54   1      	if	( get_time(&ce_tn) )	/* Store CE time		*/
+  55   1      	{
+  56   2      		if (!tim2lng(&ce_tn))	/* Check for midnight		*/
+C51 COMPILER V3.40,  BHC                                                                   29/03/98  13:58:10  PAGE 2   
+
+  57   2      			ce_sig(S_RF);	/* Reset Total Flow		*/
+  58   2      		print_time ( &ce_tn );	/* Print the time		*/
+  59   2      		printf	( " " );	/* Print a delimiter		*/
+  60   2      	}
+  61   1      	else	printf	( " NO RTC! " );/* Print RTC error		*/
+  62   1      	ui_slog ( );			/* Log status to serial port	*/
+  63   1      }
+  64          
+  65          void	main	( void )		/* Main Loop			*/
+  66          {
+  67   1      	initialise	( );		/* Set up drivers, sign on	*/
+  68   1      	while		( 1 )		/* Repeat Forever		*/
+  69   1      	{
+  70   2      		if	( test_rkey( ))	/* Remote keypress		*/
+  71   2      			proc_rkey ( );	/* Process input		*/
+  72   2      		if	( db_flag )	/* Data Logger Timer		*/
+  73   2      			proc_db	( );
+  74   2      		if	( ui_flag )	/* Display refresh period	*/
+  75   2      		{
+  76   3      			BHC_TEST= 1;	/* UI Timing test point start	*/
+  77   3      			wdog	( 0 );	/* Watchdog: (CE and UI running)*/
+  78   3      			ui_update ( );	/* Refresh info display		*/
+  79   3      			BHC_TEST= 0;	/* UI Timing test point end	*/
+  80   3      		}
+  81   2      	}
+  82   1      }
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  3 ERROR(S)

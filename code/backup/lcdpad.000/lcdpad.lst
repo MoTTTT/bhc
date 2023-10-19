@@ -1,0 +1,107 @@
+C51 COMPILER V3.40,  LCDPAD                                                                06/04/97  22:14:16  PAGE 1   
+
+
+DOS C51 COMPILER V3.40, COMPILATION OF MODULE LCDPAD
+OBJECT MODULE PLACED IN LCDPAD.OBJ
+COMPILER INVOKED BY: C:\C51\BIN\C51.EXE LCDPAD.F
+
+stmt level    source
+
+   1          /*			Copyright Q Solutions				*/
+   2          /*	File:		LcdPad.c					*/
+   3          /*	Programmer:	MoT						*/
+   4          /*	Project:	Borehole Controller				*/
+   5          /*	Module:		IIC Bus Keypad & Screen Module			*/
+   6          /*									*/
+   7          /*			History						*/
+   8          /* 17:29 30/03/1997	Written from scratch, using uNode Library	*/
+   9          /*			Initialisation and main loop.			*/
+  10          /*									*/
+  11          
+  12          #pragma		ROM (COMPACT)
+  13          #pragma		SMALL
+  14          
+  15          /* Target Specific parameters. Change these to generate final ROM image	*/
+  16          #define		KEYCTRL		/* Keypad Control Port			*/
+  17          #define 	KEYMON		/* Keypad Monitor Port 			*/
+  18          #define		SCREEN		/* LCD Control Port			*/
+  19          #define 	IICADR		/* IIC Bus Address			*/
+  20          
+  21          /* Library files							*/
+  22          #include	<stdio.h>
+  23          #include	<reg552.h>
+  24          
+  25          typedef	unsigned int uint;
+  26          typedef	unsigned char byte;
+  27          #include	<cbkey.h>
+  28          /*#include	<portlcd.h>*/
+  29          #include	<sio1.h>
+  30          #include	<n3inc.h>	/* uNode library			*/
+  31          
+  32          void	init_uNode	( void )
+  33          {
+  34   1      //	EX1	= 1;				/* ENABLE XINT1		*/
+  35   1      //	IT1	= 1;				/* XINT1 -> edge int	*/
+  36   1      //	EA	= 1;				/* ENABLE GLOBAL INT	*/
+  37   1      //	PX1	= 0;				/* EX1 -> LOW PRIORITY	*/
+  38   1      //	init_sio0( );
+  39   1      //	lcd_addr=	0x82;
+  40   1      	init_lcd( );
+  41   1      	sio1_init( 0x31 );
+  42   1      	init_RTC ( );
+  43   1      	set_lcd	( LINE_1 );
+  44   1      	printf	( "\xe4Node3" );
+  45   1      	set_lcd	( LINE_2 );
+  46   1      	printf	( "LcdPad" );
+  47   1      }
+  48          
+  49          void	init_lcd1	( )	/* Initialise LCD module	*/
+  50          {
+  51   1      }
+  52          
+  53          void	initialise	( )	/* Initialise Hardware		*/
+  54          {
+  55   1      	init_uNode	( );	/* DEV	code			*/
+  56   1      	init_cbkey	( );	/* Initialise cross bar switch	*/
+  57   1      	init_lcd1	( );	/* Initialise LCD on port SCREEN*/
+  58   1      }
+  59          
+C51 COMPILER V3.40,  LCDPAD                                                                06/04/97  22:14:16  PAGE 2   
+
+  60          void	service_keypad	( )	/* Read and process keypad	*/
+  61          {
+  62   1      
+  63   1      }
+  64          
+  65          void	paint_screen	( )	/* Draw or update the screen	*/
+  66          {
+  67   1      
+  68   1      }
+  69          
+  70          void	main	( void )
+  71          {
+  72   1      uint	counter;
+  73   1      	initialise	( );
+  74   1      	while	( 1 )
+  75   1      	{
+  76   2      		counter++;
+  77   2      		service_keypad	( );	/* Process input	*/
+  78   2      		paint_screen	( );    /* Update LCD		*/
+  79   2      		show_time( LINE_2+ 8 );
+  80   2      		show_date( LINE_1+ 11);
+  81   2      	}
+  82   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     83    ----
+   CONSTANT SIZE    =     14    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       2
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

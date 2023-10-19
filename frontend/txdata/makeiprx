@@ -1,0 +1,5 @@
+echo $BUSY
+echo Compiling testiprx
+make -f make_iprx testiprx -s
+echo done
+echo

@@ -1,0 +1,13 @@
+#define DATA_BYTES    33
+#define DATA_bytes    33
+#define MAKS_PRESSURE 2000
+#define MAKS_PELLA		200
+#define MAKS_INDUS    300
+#define MAKS_TANK1    10
+#define MAKS_TANK2    10
+#define MAKS_TANK3    4
+#define MAKS_BITS     2048
+#define MAKS_FLOW     350
+#define MAKS_ATLANTIS 27.77
+#define MAKS_MAMRE    27.77
+#define MAKS_INT      33

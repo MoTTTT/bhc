@@ -1,0 +1,174 @@
+C51 COMPILER V3.40,  BINDUMP                                                               15/04/97  22:18:52  PAGE 1   
+
+
+DOS C51 COMPILER V3.40, COMPILATION OF MODULE BINDUMP
+OBJECT MODULE PLACED IN BINDUMP.OBJ
+COMPILER INVOKED BY: C:\C51\BIN\C51.EXE BINDUMP.C
+
+stmt level    source
+
+   1          
+   2          #include <stdio.h>
+   3          
+   4          #include "serial.h"
+*** ERROR 141 IN LINE 5 OF SERIAL.H: syntax error near 'interrupt'
+   5          
+   6          int select_port;
+   7          
+   8          void sendRS232(unsigned char Char)
+   9          	{
+  10   1      	int i ,j =1;
+  11   1      	char error;
+  12   1      
+  13   1      
+  14   1      	for( j = 0; j < 1200; j++)
+  15   1      	  while ((inportb(select_port+5) & 0x20)==0);
+*** WARNING 206 IN LINE 15 OF BINDUMP.C: 'inportb': missing function-prototype
+*** ERROR 267 IN LINE 15 OF BINDUMP.C: 'inportb': requires ANSI-style prototype
+  16   1      	outportb(select_port, Char);
+*** WARNING 206 IN LINE 16 OF BINDUMP.C: 'outportb': missing function-prototype
+  17   1      	}
+  18          
+  19          /*  ************* this routine initializes both serial ports  ************* */
+  20          
+  21          int initRS232(int port,int speed,int bits,char parity,int stops)
+  22          {
+  23   1      
+  24   1      	unsigned char i;
+  25   1      	unsigned char control;
+  26   1      	int p=0;
+  27   1      	char parity_tab[5];
+  28   1      
+  29   1      	strcpy(parity_tab,"NO0E");
+*** WARNING 206 IN LINE 29 OF BINDUMP.C: 'strcpy': missing function-prototype
+  30   1      /*					 port number initialization */
+  31   1      	switch(port)
+  32   1      	{
+  33   2      		case 1 :select_port=COM1BASE;
+  34   2      			break;
+  35   2      		case 2 :select_port=COM2BASE;
+  36   2      			break;
+  37   2      	}
+  38   1      	outportb(select_port+3,(unsigned char)0x80);
+  39   1      
+  40   1      /**										speed initialization  **/
+  41   1      
+  42   1      	speed = 115200 / speed;
+  43   1      	outportb(select_port+1,(unsigned char)(speed>>8));
+  44   1      	outportb(select_port,(unsigned char)speed);
+  45   1      	parity=toupper(parity);
+*** WARNING 206 IN LINE 45 OF BINDUMP.C: 'toupper': missing function-prototype
+  46   1      	while(parity_tab[p++]!=parity);
+  47   1      	control=(p-1)<<3;
+  48   1      	switch(stops)
+  49   1      	{
+  50   2      		case 1: break;
+  51   2      		case 2: control|=0x04;
+  52   2      				break;
+  53   2      		default:
+C51 COMPILER V3.40,  BINDUMP                                                               15/04/97  22:18:52  PAGE 2   
+
+  54   2      			return(-1);
+  55   2      	}
+  56   1      	switch(bits)
+  57   1      	{
+  58   2      		case 7: control|=0x02;
+  59   2      			break;
+  60   2      		case 8: control|=0x03;
+  61   2      			break;
+  62   2      		default:
+  63   2      			return(-1);
+  64   2      	};
+  65   1      
+  66   1      /**  initialization for pooling interrupts **/
+  67   1      
+  68   1      	outportb(select_port+3,control);
+  69   1      /*	outportb(select_port+4,(unsigned char)CTRL_D);
+  70   1      	outportb(select_port+1,(unsigned char)ZERO);
+  71   1      	setport();
+  72   1      */
+  73   1      	return(0);
+  74   1      }
+  75          
+  76          
+  77          main(int argc, char *argv[])
+  78           {
+  79   1        FILE *fp;
+*** ERROR 202 IN LINE 79 OF BINDUMP.C: 'FILE': undefined identifier
+  80   1        unsigned char TC;
+*** ERROR 141 IN LINE 80 OF BINDUMP.C: syntax error near 'unsigned'
+*** ERROR 202 IN LINE 80 OF BINDUMP.C: 'TC': undefined identifier
+  81   1        char filename[128];
+*** ERROR 141 IN LINE 81 OF BINDUMP.C: syntax error near 'char'
+*** ERROR 202 IN LINE 81 OF BINDUMP.C: 'filename': undefined identifier
+  82   1        int Loop=0;
+*** ERROR 141 IN LINE 82 OF BINDUMP.C: syntax error near 'int'
+*** ERROR 202 IN LINE 82 OF BINDUMP.C: 'Loop': undefined identifier
+  83   1      
+  84   1      
+  85   1      
+  86   1        system ( "del *.hex");
+*** WARNING 206 IN LINE 86 OF BINDUMP.C: 'system': missing function-prototype
+  87   1        system ( "del *.bin");
+  88   1        system ( "oh51 nbore");
+  89   1        system ( "HEXobj nbore.HEX nbore.BIN");
+  90   1      
+  91   1      
+  92   1        system ( "mode com2:96,n,8,1,p");
+  93   1        Loop = atoi ( argv[1]);
+*** ERROR 202 IN LINE 93 OF BINDUMP.C: 'Loop': undefined identifier
+  94   1        if(Loop == 1)
+*** ERROR 202 IN LINE 94 OF BINDUMP.C: 'Loop': undefined identifier
+  95   1          {
+  96   2          if( initRS232(1, 9600,8 ,'N',1) != 0)
+  97   2            {
+  98   3            printf( "Comms error !!");
+  99   3            exit();
+*** WARNING 206 IN LINE 99 OF BINDUMP.C: 'exit': missing function-prototype
+ 100   3            }
+ 101   2          } else   if( Loop == 2)
+*** ERROR 202 IN LINE 101 OF BINDUMP.C: 'Loop': undefined identifier
+ 102   1      	{
+ 103   2      	if( initRS232(2, 9600,8 ,'N',1) != 0)
+ 104   2      	 {
+ 105   3      	 printf( "Comms error !!");
+ 106   3      	 exit();
+ 107   3      	 }
+C51 COMPILER V3.40,  BINDUMP                                                               15/04/97  22:18:52  PAGE 3   
+
+ 108   2      	}else
+ 109   1      	  {
+ 110   2      	  printf ("Comms port not spesified");
+ 111   2      	  exit(1);
+ 112   2      	  }
+ 113   1        fp = fopen( argv[2],"rb");
+*** ERROR 202 IN LINE 113 OF BINDUMP.C: 'fp': undefined identifier
+ 114   1        if ( fp ==0)
+*** ERROR 202 IN LINE 114 OF BINDUMP.C: 'fp': undefined identifier
+ 115   1          {
+ 116   2          printf( "Could not find %s\n", argv[2]);
+ 117   2          exit(1);
+ 118   2          }
+ 119   1        while ( feof( fp) == 0)
+*** ERROR 202 IN LINE 119 OF BINDUMP.C: 'fp': undefined identifier
+ 120   1          {
+ 121   2          TC = fgetc( fp);
+*** ERROR 202 IN LINE 121 OF BINDUMP.C: 'TC': undefined identifier
+ 122   2          sendRS232( TC);
+*** ERROR 202 IN LINE 122 OF BINDUMP.C: 'TC': undefined identifier
+ 123   2          if( Loop++ == 100)
+*** ERROR 183 IN LINE 123 OF BINDUMP.C: unmodifiable lvalue
+ 124   2            {
+ 125   3            Loop=0;
+*** ERROR 202 IN LINE 125 OF BINDUMP.C: 'Loop': undefined identifier
+ 126   3            printf(".");
+ 127   3            }
+ 128   2          }
+ 129   1        fclose( fp);
+*** ERROR 202 IN LINE 129 OF BINDUMP.C: 'fp': undefined identifier
+ 130   1        printf( "\nDone!!\n");
+ 131   1      
+ 132   1      
+ 133   1       }
+
+C51 COMPILATION COMPLETE.  6 WARNING(S),  20 ERROR(S)

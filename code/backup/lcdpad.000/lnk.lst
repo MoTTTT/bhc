@@ -1,0 +1,177 @@
+BL51 BANKED LINKER/LOCATER V2.10                                                          04/06/97  22:14:16  PAGE 1
+
+
+MS-DOS BL51 BANKED LINKER/LOCATER V2.10, INVOKED BY:
+C:\C51\BIN\BL51.EXE LCDPAD.OBJ, SIO1.OBJ, PUTCHAR.OBJ, N3INC.OBJ, CBKEY.OBJ TO LCDPAD.ABS RAMSIZE (256) NOOVERLAY PRINT 
+>> (LNK.LST)
+
+
+MEMORY MODEL: SMALL
+
+
+INPUT MODULES INCLUDED:
+  LCDPAD.OBJ (LCDPAD)
+  SIO1.OBJ (SIO1)
+  PUTCHAR.OBJ (PUTCHAR)
+  N3INC.OBJ (N3INC)
+  CBKEY.OBJ (CBKEY)
+  C:\C51\LIB\C51S.LIB (?C_STARTUP)
+  C:\C51\LIB\C51S.LIB (?C_CLDPTR)
+  C:\C51\LIB\C51S.LIB (?C_CLDOPTR)
+  C:\C51\LIB\C51S.LIB (?C_CSTPTR)
+  C:\C51\LIB\C51S.LIB (?C_CSTOPTR)
+  C:\C51\LIB\C51S.LIB (PRINTF)
+  C:\C51\LIB\C51S.LIB (?C_INIT)
+  C:\C51\LIB\C51S.LIB (?C_PLDIIDATA)
+  C:\C51\LIB\C51S.LIB (?C_CCASE)
+
+
+LINK MAP OF MODULE:  LCDPAD.ABS (LCDPAD)
+
+
+            TYPE    BASE      LENGTH    RELOCATION   SEGMENT NAME
+            -----------------------------------------------------
+
+            * * * * * * *   D A T A   M E M O R Y   * * * * * * *
+            REG     0000H     0008H     ABSOLUTE     "REG BANK 0"
+            DATA    0008H     0002H     UNIT         ?DT?MAIN?LCDPAD
+            DATA    000AH     0006H     UNIT         IICDATA
+            DATA    0010H     0003H     UNIT         ?DT?_READ_TIME?N3INC
+            DATA    0013H     0003H     UNIT         ?DT?_READ_DATE?N3INC
+            DATA    0016H     0001H     UNIT         ?DT?_SHOW_TIME?N3INC
+            DATA    0017H     0001H     UNIT         ?DT?_SHOW_DATE?N3INC
+            REG     0018H     0008H     ABSOLUTE     "REG BANK 3"
+            BIT     0020H.0   0000H.1   UNIT         ?BI?N3INC
+            BIT     0020H.1   0000H.2   UNIT         ?BI?CBKEY
+            BIT     0020H.3   0001H.1   UNIT         ?BI?PRINTF?PRINTF
+                    0021H.4   0000H.4                *** GAP ***
+            DATA    0022H     0003H     UNIT         ?DT?_DISPLAY_TIME?N3INC
+            DATA    0025H     0003H     UNIT         ?DT?_DISPLAY_DATE?N3INC
+            DATA    0028H     0006H     UNIT         ?DT?GET_TIME?N3INC
+            DATA    002EH     0002H     UNIT         ?DT?N3INC
+            DATA    0030H     0002H     UNIT         ?DT?STOREKEY?CBKEY
+            DATA    0032H     000DH     UNIT         ?DT?CBKEY
+            DATA    003FH     0014H     UNIT         ?DT?PRINTF?PRINTF
+            IDATA   0053H     001CH     UNIT         ?ID?N3INC
+            IDATA   006FH     0001H     UNIT         ?STACK
+
+            * * * * * * *   C O D E   M E M O R Y   * * * * * * *
+            CODE    0000H     0003H     ABSOLUTE     
+            CODE    0003H     0001H     INBLOCK      ?PR?INIT_LCD1?LCDPAD
+            CODE    0004H     0001H     INBLOCK      ?PR?SERVICE_KEYPAD?LCDPAD
+BL51 BANKED LINKER/LOCATER V2.10                                                        04/06/97  22:14:16  PAGE 2
+
+
+            CODE    0005H     0001H     INBLOCK      ?PR?PAINT_SCREEN?LCDPAD
+            CODE    0006H     0003H     UNIT         ?PR?X1_INT?N3INC
+                    0009H     0002H                  *** GAP ***
+            CODE    000BH     0003H     ABSOLUTE     
+            CODE    000EH     0003H     UNIT         ?PR?TEST_CBKEY?CBKEY
+                    0011H     0002H                  *** GAP ***
+            CODE    0013H     0003H     ABSOLUTE     
+            CODE    0016H     000AH     INBLOCK      ?PR?INITIALISE?LCDPAD
+            CODE    0020H     0006H     UNIT         ?PR?_W_DOG?N3INC
+                    0026H     0005H                  *** GAP ***
+            CODE    002BH     0007H     ABSOLUTE     
+            CODE    0032H     0028H     INBLOCK      ?PR?INIT_UNODE?LCDPAD
+            CODE    005AH     001EH     INBLOCK      ?PR?MAIN?LCDPAD
+            CODE    0078H     000EH     UNIT         ?CO?LCDPAD
+            CODE    0086H     000AH     UNIT         ?PR?_SET_LCD?N3INC
+            CODE    0090H     000FH     UNIT         ?PR?INIT_SIO0?N3INC
+                    009FH     0001H                  *** GAP ***
+            CODE    00A0H     000DH     ABSOLUTE     
+                    00ADH     0003H                  *** GAP ***
+            CODE    00B0H     000CH     ABSOLUTE     
+                    00BCH     0004H                  *** GAP ***
+            CODE    00C0H     000FH     ABSOLUTE     
+            CODE    00CFH     001BH     UNIT         IICCODE
+            CODE    00EAH     0011H     UNIT         ?PR?INIT_RTC?N3INC
+                    00FBH     0005H                  *** GAP ***
+            CODE    0100H     0006H     ABSOLUTE     
+                    0106H     0002H                  *** GAP ***
+            CODE    0108H     0008H     ABSOLUTE     
+            CODE    0110H     0008H     ABSOLUTE     
+            CODE    0118H     0007H     ABSOLUTE     
+                    011FH     0001H                  *** GAP ***
+            CODE    0120H     0006H     ABSOLUTE     
+                    0126H     0002H                  *** GAP ***
+            CODE    0128H     0008H     ABSOLUTE     
+            CODE    0130H     0006H     ABSOLUTE     
+                    0136H     0002H                  *** GAP ***
+            CODE    0138H     0008H     ABSOLUTE     
+            CODE    0140H     0005H     ABSOLUTE     
+                    0145H     0003H                  *** GAP ***
+            CODE    0148H     0006H     ABSOLUTE     
+                    014EH     0002H                  *** GAP ***
+            CODE    0150H     0007H     ABSOLUTE     
+                    0157H     0001H                  *** GAP ***
+            CODE    0158H     0006H     ABSOLUTE     
+            CODE    015EH     0041H     UNIT         PUT_C
+            CODE    019FH     001BH     UNIT         ?PR?INIT_LCD?N3INC
+            CODE    01BAH     0026H     UNIT         ?PR?_START_SIO1?N3INC
+            CODE    01E0H     0040H     UNIT         ?PR?_READ_TIME?N3INC
+            CODE    0220H     0037H     UNIT         ?PR?_READ_DATE?N3INC
+            CODE    0257H     0030H     UNIT         ?PR?_DISPLAY_TIME?N3INC
+            CODE    0287H     0028H     UNIT         ?PR?_DISPLAY_DATE?N3INC
+            CODE    02AFH     0017H     UNIT         ?PR?_SHOW_TIME?N3INC
+            CODE    02C6H     0017H     UNIT         ?PR?_SHOW_DATE?N3INC
+            CODE    02DDH     003EH     UNIT         ?PR?_RANGE_GETKEY?N3INC
+            CODE    031BH     000DH     UNIT         ?PR?GETKEY?N3INC
+            CODE    0328H     00BAH     UNIT         ?PR?GET_TIME?N3INC
+            CODE    03E2H     0020H     UNIT         ?PR?TEST_X1?N3INC
+BL51 BANKED LINKER/LOCATER V2.10                                                        04/06/97  22:14:16  PAGE 3
+
+
+            CODE    0402H     0034H     UNIT         ?CO?N3INC
+            CODE    0436H     001FH     UNIT         ?C_INITSEG
+            CODE    0455H     000EH     UNIT         ?PR?INIT_CBKEY?CBKEY
+            CODE    0463H     0008H     UNIT         ?PR?READ_CBKEY?CBKEY
+            CODE    046BH     0044H     UNIT         ?PR?STOREKEY?CBKEY
+            CODE    04AFH     005DH     UNIT         ?PR?T0_INT?CBKEY
+            CODE    050CH     008CH     UNIT         ?C_C51STARTUP
+            CODE    0598H     00B8H     UNIT         ?C_LIB_CODE
+            CODE    0650H     032BH     UNIT         ?PR?PRINTF?PRINTF
+
+
+
+SYMBOL TABLE OF MODULE:  LCDPAD.ABS (LCDPAD)
+
+  VALUE           TYPE          NAME
+  ----------------------------------
+
+  -------         MODULE        ?C_CLDPTR
+  C:0598H         PUBLIC        ?C_CLDPTR
+  -------         ENDMOD        ?C_CLDPTR
+
+  -------         MODULE        ?C_CLDOPTR
+  C:05B3H         PUBLIC        ?C_CLDOPTR
+  -------         ENDMOD        ?C_CLDOPTR
+
+  -------         MODULE        ?C_CSTPTR
+  C:05E2H         PUBLIC        ?C_CSTPTR
+  -------         ENDMOD        ?C_CSTPTR
+
+  -------         MODULE        ?C_CSTOPTR
+  C:05F6H         PUBLIC        ?C_CSTOPTR
+  -------         ENDMOD        ?C_CSTOPTR
+
+  -------         MODULE        PRINTF
+  D:003FH         PUBLIC        ?_PRINTF517?BYTE
+  D:003FH         PUBLIC        ?_SPRINTF517?BYTE
+  D:003FH         PUBLIC        ?_PRINTF?BYTE
+  D:003FH         PUBLIC        ?_SPRINTF?BYTE
+  C:06B5H         PUBLIC        _PRINTF
+  C:06AFH         PUBLIC        _SPRINTF
+  C:06B5H         PUBLIC        _PRINTF517
+  C:06AFH         PUBLIC        _SPRINTF517
+  -------         ENDMOD        PRINTF
+
+  -------         MODULE        ?C_PLDIIDATA
+  C:061AH         PUBLIC        ?C_PLDIIDATA
+  -------         ENDMOD        ?C_PLDIIDATA
+
+  -------         MODULE        ?C_CCASE
+  C:062AH         PUBLIC        ?C_CCASE
+  -------         ENDMOD        ?C_CCASE
+
+LINK/LOCATE RUN COMPLETE.  0 WARNING(S),  0 ERROR(S)

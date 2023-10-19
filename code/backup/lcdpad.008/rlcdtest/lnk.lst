@@ -1,0 +1,209 @@
+BL51 BANKED LINKER/LOCATER V3.52                                                          14/07/97  00:02:31  PAGE 1
+
+
+MS-DOS BL51 BANKED LINKER/LOCATER V3.52, INVOKED BY:
+D:\C51\BIN\BL51.EXE TEST.OBJ, NODE.LIB TO TEST.ABS RAMSIZE (256) PRINT (LNK.LST) NOOVERLAY XDATA (4200H)
+
+
+MEMORY MODEL: LARGE
+
+
+INPUT MODULES INCLUDED:
+  TEST.OBJ (TEST)
+  NODE.LIB (IICDRIV)
+  NODE.LIB (NKEY)
+  NODE.LIB (NODELCD)
+  NODE.LIB (WDOG)
+  NODE.LIB (RLCDPAD)
+  NODE.LIB (IIC)
+  D:\C51\LIB\C51L.LIB (?C_STARTUP)
+  D:\C51\LIB\C51L.LIB (?C?ILDIX)
+  D:\C51\LIB\C51L.LIB (PRINTF)
+  D:\C51\LIB\C51L.LIB (?C_INIT)
+  D:\C51\LIB\C51L.LIB (?C?CLDPTR)
+  D:\C51\LIB\C51L.LIB (?C?CLDOPTR)
+  D:\C51\LIB\C51L.LIB (?C?CSTPTR)
+  D:\C51\LIB\C51L.LIB (?C?PLDIXDATA)
+  D:\C51\LIB\C51L.LIB (?C?PSTXDATA)
+  D:\C51\LIB\C51L.LIB (?C?CCASE)
+
+
+LINK MAP OF MODULE:  TEST.ABS (TEST)
+
+
+            TYPE    BASE      LENGTH    RELOCATION   SEGMENT NAME
+            -----------------------------------------------------
+
+            * * * * * * *   D A T A   M E M O R Y   * * * * * * *
+            REG     0000H     0008H     ABSOLUTE     "REG BANK 0"
+            DATA    0008H     0008H     UNIT         IICDATA
+            DATA    0010H     0005H     UNIT         ?DT?PRINTF?PRINTF
+            IDATA   0015H     0001H     UNIT         ?ID?TEST_X1?NKEY
+                    0016H     0002H                  *** GAP ***
+            REG     0018H     0008H     ABSOLUTE     "REG BANK 3"
+            BIT     0020H.0   0000H.2   ABSOLUTE     
+            BIT     0020H.2   0000H.1   UNIT         ?BI?NKEY
+            BIT     0020H.3   0000H.1   UNIT         ?BI?NODELCD
+            BIT     0020H.4   0000H.1   UNIT         ?BI?RLCDPAD
+            BIT     0020H.5   0001H.1   UNIT         ?BI?PRINTF?PRINTF
+                    0021H.6   0000H.2                *** GAP ***
+            IDATA   0022H     0004H     UNIT         ?ID?RLCDPAD
+            IDATA   0026H     0001H     UNIT         ?STACK
+
+            * * * * * * *  X D A T A   M E M O R Y  * * * * * * *
+                    0000H     4200H                  *** GAP ***
+            XDATA   4200H     0001H     UNIT         ?XD?_PUTCHAR?TEST
+            XDATA   4201H     000BH     UNIT         ?XD?TEST
+            XDATA   420CH     0001H     UNIT         ?XD?TEST_X1?NKEY
+            XDATA   420DH     0006H     UNIT         ?XD?_PAINT_NLCD?NODELCD
+            XDATA   4213H     0006H     UNIT         ?XD?_PAINT_RLCD?RLCDPAD
+            XDATA   4219H     0002H     UNIT         ?XD?INIT_RLCD?RLCDPAD
+            XDATA   421BH     0002H     UNIT         ?XD?_RPUTCHAR?RLCDPAD
+            XDATA   421DH     0014H     UNIT         ?XD?RLCDPAD
+            XDATA   4231H     0028H     UNIT         ?XD?PRINTF?PRINTF
+
+            * * * * * * *   C O D E   M E M O R Y   * * * * * * *
+            CODE    0000H     0003H     ABSOLUTE     
+            CODE    0003H     0009H     UNIT         ?PR?INIT_NKEY?NKEY
+            CODE    000CH     0003H     UNIT         ?PR?X1_INT?NKEY
+            CODE    000FH     0003H     UNIT         ?PR?TEST_RKEY?RLCDPAD
+BL51 BANKED LINKER/LOCATER V3.52                                                        14/07/97  00:02:31  PAGE 2
+
+
+                    0012H     0001H                  *** GAP ***
+            CODE    0013H     0003H     ABSOLUTE     
+            CODE    0016H     000DH     UNIT         ?PR?NGETKEY?NKEY
+            CODE    0023H     0008H     UNIT         ?PR?_SET_NLCD?NODELCD
+            CODE    002BH     0007H     ABSOLUTE     
+            CODE    0032H     0024H     INBLOCK      ?PR?SIGNON?TEST
+            CODE    0056H     0030H     INBLOCK      ?PR?RSIGNON?TEST
+            CODE    0086H     0006H     UNIT         ?PR?_WDOG?WDOG
+            CODE    008CH     0004H     UNIT         ?PR?_INIT_IIC?IIC
+            CODE    0090H     000AH     ABSOLUTE     
+                    009AH     0006H                  *** GAP ***
+            CODE    00A0H     000DH     ABSOLUTE     
+                    00ADH     0003H                  *** GAP ***
+            CODE    00B0H     000CH     ABSOLUTE     
+                    00BCH     0004H                  *** GAP ***
+            CODE    00C0H     000FH     ABSOLUTE     
+                    00CFH     0001H                  *** GAP ***
+            CODE    00D0H     0007H     ABSOLUTE     
+                    00D7H     0001H                  *** GAP ***
+            CODE    00D8H     0010H     ABSOLUTE     
+            CODE    00E8H     000DH     ABSOLUTE     
+                    00F5H     0003H                  *** GAP ***
+            CODE    00F8H     0007H     ABSOLUTE     
+                    00FFH     0001H                  *** GAP ***
+            CODE    0100H     0006H     ABSOLUTE     
+                    0106H     0002H                  *** GAP ***
+            CODE    0108H     0008H     ABSOLUTE     
+            CODE    0110H     0008H     ABSOLUTE     
+            CODE    0118H     0007H     ABSOLUTE     
+                    011FH     0001H                  *** GAP ***
+            CODE    0120H     0006H     ABSOLUTE     
+                    0126H     0002H                  *** GAP ***
+            CODE    0128H     0008H     ABSOLUTE     
+            CODE    0130H     0006H     ABSOLUTE     
+                    0136H     0002H                  *** GAP ***
+            CODE    0138H     0008H     ABSOLUTE     
+            CODE    0140H     0005H     ABSOLUTE     
+                    0145H     0003H                  *** GAP ***
+            CODE    0148H     0006H     ABSOLUTE     
+                    014EH     0002H                  *** GAP ***
+            CODE    0150H     0007H     ABSOLUTE     
+                    0157H     0001H                  *** GAP ***
+            CODE    0158H     0008H     ABSOLUTE     
+            CODE    0160H     0008H     ABSOLUTE     
+            CODE    0168H     0008H     ABSOLUTE     
+            CODE    0170H     0008H     UNIT         ?PR?INIT_RKPAD?RLCDPAD
+            CODE    0178H     0008H     UNIT         ?PR?_SET_RLCD?RLCDPAD
+            CODE    0180H     0007H     ABSOLUTE     
+                    0187H     0001H                  *** GAP ***
+            CODE    0188H     0005H     ABSOLUTE     
+            CODE    018DH     000FH     UNIT         ?PR?IIC_WAIT?IIC
+                    019CH     0004H                  *** GAP ***
+            CODE    01A0H     0006H     ABSOLUTE     
+                    01A6H     0002H                  *** GAP ***
+            CODE    01A8H     0002H     ABSOLUTE     
+                    01AAH     0006H                  *** GAP ***
+            CODE    01B0H     0002H     ABSOLUTE     
+                    01B2H     0006H                  *** GAP ***
+            CODE    01B8H     0007H     ABSOLUTE     
+                    01BFH     0001H                  *** GAP ***
+            CODE    01C0H     0006H     ABSOLUTE     
+                    01C6H     0002H                  *** GAP ***
+            CODE    01C8H     0006H     ABSOLUTE     
+            CODE    01CEH     0017H     INBLOCK      ?PR?INITIALISE?TEST
+            CODE    01E5H     0028H     INBLOCK      ?PR?_PUTCHAR?TEST
+BL51 BANKED LINKER/LOCATER V3.52                                                        14/07/97  00:02:31  PAGE 3
+
+
+            CODE    020DH     0035H     INBLOCK      ?PR?SERVICE_IICIN?TEST
+            CODE    0242H     004BH     INBLOCK      ?PR?SERVICE_KEYPAD?TEST
+            CODE    028DH     001FH     INBLOCK      ?PR?MAIN?TEST
+            CODE    02ACH     0066H     UNIT         ?CO?TEST
+            CODE    0312H     002CH     UNIT         ?C_INITSEG
+            CODE    033EH     0024H     UNIT         IICCODE
+            CODE    0362H     002CH     UNIT         ?PR?TEST_X1?NKEY
+            CODE    038EH     0017H     UNIT         ?PR?_NPUTCHAR?NODELCD
+            CODE    03A5H     0019H     UNIT         ?PR?INIT_NLCD?NODELCD
+            CODE    03BEH     001CH     UNIT         ?PR?_PAINT_NLCD?NODELCD
+            CODE    03DAH     0032H     UNIT         ?PR?_PAINT_RLCD?RLCDPAD
+            CODE    040CH     0033H     UNIT         ?PR?INIT_RLCD?RLCDPAD
+            CODE    043FH     004EH     UNIT         ?PR?_RPUTCHAR?RLCDPAD
+            CODE    048DH     0022H     UNIT         ?PR?RGETKEY?RLCDPAD
+            CODE    04AFH     0007H     UNIT         ?PR?_IIC_MTX?IIC
+            CODE    04B6H     008CH     UNIT         ?C_C51STARTUP
+            CODE    0542H     00B4H     UNIT         ?C?LIB_CODE
+            CODE    05F6H     035CH     UNIT         ?PR?PRINTF?PRINTF
+
+
+
+SYMBOL TABLE OF MODULE:  TEST.ABS (TEST)
+
+  VALUE           TYPE          NAME
+  ----------------------------------
+
+  -------         MODULE        ?C?ILDIX
+  C:0542H         PUBLIC        ?C?ILDIX
+  -------         ENDMOD        ?C?ILDIX
+
+  -------         MODULE        PRINTF
+  X:4231H         PUBLIC        ?_PRINTF517?BYTE
+  X:4231H         PUBLIC        ?_PRINTF?BYTE
+  X:4231H         PUBLIC        ?_SPRINTF517?BYTE
+  X:4231H         PUBLIC        ?_SPRINTF?BYTE
+  C:0661H         PUBLIC        _PRINTF
+  C:0661H         PUBLIC        _PRINTF517
+  C:065BH         PUBLIC        _SPRINTF
+  C:065BH         PUBLIC        _SPRINTF517
+  -------         ENDMOD        PRINTF
+
+  -------         MODULE        ?C?CLDPTR
+  C:0558H         PUBLIC        ?C?CLDPTR
+  -------         ENDMOD        ?C?CLDPTR
+
+  -------         MODULE        ?C?CLDOPTR
+  C:0571H         PUBLIC        ?C?CLDOPTR
+  -------         ENDMOD        ?C?CLDOPTR
+
+  -------         MODULE        ?C?CSTPTR
+  C:059EH         PUBLIC        ?C?CSTPTR
+  -------         ENDMOD        ?C?CSTPTR
+
+  -------         MODULE        ?C?PLDIXDATA
+  C:05B0H         PUBLIC        ?C?PLDIXDATA
+  -------         ENDMOD        ?C?PLDIXDATA
+
+  -------         MODULE        ?C?PSTXDATA
+  C:05C7H         PUBLIC        ?C?PSTXDATA
+  -------         ENDMOD        ?C?PSTXDATA
+
+  -------         MODULE        ?C?CCASE
+  C:05D0H         PUBLIC        ?C?CCASE
+  -------         ENDMOD        ?C?CCASE
+
+BL51 BANKED LINKER/LOCATER V3.52                                                        14/07/97  00:02:31  PAGE 4
+
+
+LINK/LOCATE RUN COMPLETE.  0 WARNING(S),  0 ERROR(S)

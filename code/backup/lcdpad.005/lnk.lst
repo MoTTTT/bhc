@@ -1,0 +1,198 @@
+BL51 BANKED LINKER/LOCATER V2.10                                                          04/20/97  12:06:20  PAGE 1
+
+
+MS-DOS BL51 BANKED LINKER/LOCATER V2.10, INVOKED BY:
+C:\C51\BIN\BL51.EXE LCDPAD.OBJ, WDOG.OBJ, PORTLCD.OBJ, CBKEY.OBJ, IICDRIV.OBJ, RTC.OBJ TO LCDPAD.ABS RAMSIZE (256) NOOVE
+>> RLAY PRINT (LNK.LST)
+
+
+MEMORY MODEL: SMALL
+
+
+INPUT MODULES INCLUDED:
+  LCDPAD.OBJ (LCDPAD)
+  WDOG.OBJ (WDOG)
+  PORTLCD.OBJ (PORTLCD)
+  CBKEY.OBJ (CBKEY)
+  IICDRIV.OBJ (IICDRIV)
+  RTC.OBJ (RTC)
+  C:\C51\LIB\C51S.LIB (?C_STARTUP)
+  C:\C51\LIB\C51S.LIB (?C_CCASE)
+  C:\C51\LIB\C51S.LIB (PRINTF)
+  C:\C51\LIB\C51S.LIB (_GETKEY)
+  C:\C51\LIB\C51S.LIB (?C_INIT)
+  C:\C51\LIB\C51S.LIB (?C_CLDPTR)
+  C:\C51\LIB\C51S.LIB (?C_CLDOPTR)
+  C:\C51\LIB\C51S.LIB (?C_CSTPTR)
+  C:\C51\LIB\C51S.LIB (?C_PLDIIDATA)
+
+
+LINK MAP OF MODULE:  LCDPAD.ABS (LCDPAD)
+
+
+            TYPE    BASE      LENGTH    RELOCATION   SEGMENT NAME
+            -----------------------------------------------------
+
+            * * * * * * *   D A T A   M E M O R Y   * * * * * * *
+            REG     0000H     0008H     ABSOLUTE     "REG BANK 0"
+            DATA    0008H     0001H     UNIT         ?DT?INITIALISE?LCDPAD
+            DATA    0009H     0006H     UNIT         ?DT?_PAINT?LCDPAD
+            DATA    000FH     0003H     UNIT         ?DT?MAIN?LCDPAD
+            DATA    0012H     0002H     UNIT         ?DT?STOREKEY?CBKEY
+            IDATA   0014H     0004H     UNIT         ?ID?LCDPAD
+            REG     0018H     0008H     ABSOLUTE     "REG BANK 3"
+            BIT     0020H.0   0000H.2   ABSOLUTE     
+            BIT     0020H.2   0000H.1   UNIT         ?BI?LCDPAD
+            BIT     0020H.3   0000H.2   UNIT         ?BI?CBKEY
+            BIT     0020H.5   0001H.1   UNIT         ?BI?PRINTF?PRINTF
+                    0021H.6   0000H.2                *** GAP ***
+            DATA    0022H     002AH     UNIT         ?DT?LCDPAD
+            DATA    004CH     000DH     UNIT         ?DT?CBKEY
+            DATA    0059H     0008H     UNIT         IICDATA
+            DATA    0061H     0006H     UNIT         ?DT?GET_TIME?RTC
+            DATA    0067H     0014H     UNIT         ?DT?PRINTF?PRINTF
+            IDATA   007BH     0011H     UNIT         ?ID?RTC
+            IDATA   008CH     0001H     UNIT         ?STACK
+
+            * * * * * * *   C O D E   M E M O R Y   * * * * * * *
+            CODE    0000H     0003H     ABSOLUTE     
+            CODE    0003H     0004H     INBLOCK      ?PR?_PUTCHAR?LCDPAD
+            CODE    0007H     0003H     UNIT         ?PR?TEST_CBKEY?CBKEY
+                    000AH     0001H                  *** GAP ***
+BL51 BANKED LINKER/LOCATER V2.10                                                        04/20/97  12:06:20  PAGE 2
+
+
+            CODE    000BH     0003H     ABSOLUTE     
+            CODE    000EH     0019H     INBLOCK      ?PR?PROC_KEY?LCDPAD
+                    0027H     0004H                  *** GAP ***
+            CODE    002BH     0007H     ABSOLUTE     
+            CODE    0032H     001FH     INBLOCK      ?PR?INITIALISE?LCDPAD
+            CODE    0051H     0025H     INBLOCK      ?PR?PROC_IIC?LCDPAD
+            CODE    0076H     0014H     INBLOCK      ?PR?TEST_KEY?LCDPAD
+            CODE    008AH     0006H     INBLOCK      ?PR?_WDOG?WDOG
+            CODE    0090H     000AH     ABSOLUTE     
+            CODE    009AH     0006H     UNIT         ?PR?_SET_PLCD?PORTLCD
+            CODE    00A0H     000DH     ABSOLUTE     
+                    00ADH     0003H                  *** GAP ***
+            CODE    00B0H     000CH     ABSOLUTE     
+                    00BCH     0004H                  *** GAP ***
+            CODE    00C0H     000FH     ABSOLUTE     
+                    00CFH     0001H                  *** GAP ***
+            CODE    00D0H     0007H     ABSOLUTE     
+                    00D7H     0001H                  *** GAP ***
+            CODE    00D8H     0010H     ABSOLUTE     
+            CODE    00E8H     000DH     ABSOLUTE     
+                    00F5H     0003H                  *** GAP ***
+            CODE    00F8H     0007H     ABSOLUTE     
+                    00FFH     0001H                  *** GAP ***
+            CODE    0100H     0006H     ABSOLUTE     
+                    0106H     0002H                  *** GAP ***
+            CODE    0108H     0008H     ABSOLUTE     
+            CODE    0110H     0008H     ABSOLUTE     
+            CODE    0118H     0007H     ABSOLUTE     
+                    011FH     0001H                  *** GAP ***
+            CODE    0120H     0006H     ABSOLUTE     
+                    0126H     0002H                  *** GAP ***
+            CODE    0128H     0008H     ABSOLUTE     
+            CODE    0130H     0006H     ABSOLUTE     
+                    0136H     0002H                  *** GAP ***
+            CODE    0138H     0008H     ABSOLUTE     
+            CODE    0140H     0005H     ABSOLUTE     
+                    0145H     0003H                  *** GAP ***
+            CODE    0148H     0006H     ABSOLUTE     
+                    014EH     0002H                  *** GAP ***
+            CODE    0150H     0007H     ABSOLUTE     
+                    0157H     0001H                  *** GAP ***
+            CODE    0158H     0008H     ABSOLUTE     
+            CODE    0160H     0008H     ABSOLUTE     
+            CODE    0168H     0008H     ABSOLUTE     
+            CODE    0170H     0008H     UNIT         ?PR?READ_CBKEY?CBKEY
+                    0178H     0008H                  *** GAP ***
+            CODE    0180H     0007H     ABSOLUTE     
+                    0187H     0001H                  *** GAP ***
+            CODE    0188H     0005H     ABSOLUTE     
+            CODE    018DH     0011H     UNIT         ?PR?INIT_CBKEY?CBKEY
+                    019EH     0002H                  *** GAP ***
+            CODE    01A0H     0006H     ABSOLUTE     
+                    01A6H     0002H                  *** GAP ***
+            CODE    01A8H     0002H     ABSOLUTE     
+                    01AAH     0006H                  *** GAP ***
+            CODE    01B0H     0002H     ABSOLUTE     
+                    01B2H     0006H                  *** GAP ***
+BL51 BANKED LINKER/LOCATER V2.10                                                        04/20/97  12:06:20  PAGE 3
+
+
+            CODE    01B8H     0007H     ABSOLUTE     
+                    01BFH     0001H                  *** GAP ***
+            CODE    01C0H     0006H     ABSOLUTE     
+                    01C6H     0002H                  *** GAP ***
+            CODE    01C8H     0006H     ABSOLUTE     
+            CODE    01CEH     0028H     INBLOCK      ?PR?_PAINT?LCDPAD
+            CODE    01F6H     0218H     INBLOCK      ?PR?MAIN?LCDPAD
+            CODE    040EH     007BH     UNIT         ?CO?LCDPAD
+            CODE    0489H     0055H     UNIT         ?C_INITSEG
+            CODE    04DEH     0015H     UNIT         ?PR?INIT_PLCD?PORTLCD
+            CODE    04F3H     004BH     UNIT         ?PR?_PPUTCHAR?PORTLCD
+            CODE    053EH     0052H     UNIT         ?PR?STOREKEY?CBKEY
+            CODE    0590H     006AH     UNIT         ?PR?T0_INT?CBKEY
+            CODE    05FAH     0024H     UNIT         IICCODE
+            CODE    061EH     000FH     UNIT         ?PR?IIC_WAIT?RTC
+            CODE    062DH     0014H     UNIT         ?PR?INIT_RTC?RTC
+            CODE    0641H     003CH     UNIT         ?PR?SHOW_TIME?RTC
+            CODE    067DH     0038H     UNIT         ?PR?SHOW_DATE?RTC
+            CODE    06B5H     003EH     UNIT         ?PR?_RANGE_GETKEY?RTC
+            CODE    06F3H     000AH     UNIT         ?PR?PROMPT_TIME?RTC
+            CODE    06FDH     009EH     UNIT         ?PR?GET_TIME?RTC
+            CODE    079BH     0026H     UNIT         ?PR?TEST_ALARM?RTC
+            CODE    07C1H     0034H     UNIT         ?CO?RTC
+            CODE    07F5H     008CH     UNIT         ?C_C51STARTUP
+            CODE    0881H     0094H     UNIT         ?C_LIB_CODE
+            CODE    0915H     032BH     UNIT         ?PR?PRINTF?PRINTF
+            CODE    0C40H     000AH     UNIT         ?PR?_GETKEY?_GETKEY
+
+
+
+SYMBOL TABLE OF MODULE:  LCDPAD.ABS (LCDPAD)
+
+  VALUE           TYPE          NAME
+  ----------------------------------
+
+  -------         MODULE        ?C_CCASE
+  C:0881H         PUBLIC        ?C_CCASE
+  -------         ENDMOD        ?C_CCASE
+
+  -------         MODULE        PRINTF
+  D:0067H         PUBLIC        ?_PRINTF517?BYTE
+  D:0067H         PUBLIC        ?_SPRINTF517?BYTE
+  D:0067H         PUBLIC        ?_PRINTF?BYTE
+  D:0067H         PUBLIC        ?_SPRINTF?BYTE
+  C:097AH         PUBLIC        _PRINTF
+  C:0974H         PUBLIC        _SPRINTF
+  C:097AH         PUBLIC        _PRINTF517
+  C:0974H         PUBLIC        _SPRINTF517
+  -------         ENDMOD        PRINTF
+
+  -------         MODULE        _GETKEY
+  C:0C40H         PUBLIC        _GETKEY
+  -------         ENDMOD        _GETKEY
+
+  -------         MODULE        ?C_CLDPTR
+  C:08A7H         PUBLIC        ?C_CLDPTR
+  -------         ENDMOD        ?C_CLDPTR
+BL51 BANKED LINKER/LOCATER V2.10                                                        04/20/97  12:06:20  PAGE 4
+
+
+
+  -------         MODULE        ?C_CLDOPTR
+  C:08C2H         PUBLIC        ?C_CLDOPTR
+  -------         ENDMOD        ?C_CLDOPTR
+
+  -------         MODULE        ?C_CSTPTR
+  C:08F1H         PUBLIC        ?C_CSTPTR
+  -------         ENDMOD        ?C_CSTPTR
+
+  -------         MODULE        ?C_PLDIIDATA
+  C:0905H         PUBLIC        ?C_PLDIIDATA
+  -------         ENDMOD        ?C_PLDIIDATA
+
+LINK/LOCATE RUN COMPLETE.  0 WARNING(S),  0 ERROR(S)

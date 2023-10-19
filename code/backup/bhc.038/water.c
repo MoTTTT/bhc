@@ -1,0 +1,78 @@
+/*			Copyright Q Solutions				*/
+/*	File:		water.c						*/
+/*	Programmer:	MoT						*/
+/*	Module:		Control Engine Water Level Module		*/
+/*									*/
+/*			History						*/
+/* 19:29pm 05-17-1997  	Extracted from ce.c				*/
+/*									*/
+
+/*		Water Level Measurement Parameters			*/
+#define	W		1		/* ADC channel: Water level	*/
+#define	W_FS		25		/* Water level: Full scale	*/
+#define	W_T1		4		/* Water Low (in m above LL)	*/
+#define	W_CNT		200		/* Number of water samples	*/
+#define	W_SL		0.3*W_CNT	/* Water Low threshold off	*/
+#define	W_SH		0.7*W_CNT	/* Water Low threshold on	*/
+#define	W_DLL		5		/* Default Low Level (in m)	*/
+byte	idata w_tot=	0;		/* Water Low Count 		*/
+byte	idata w_cnt=	0;		/* Water sample count		*/
+byte	idata w_ave;			/* Water level average		*/
+byte	idata w_spl;			/* Water level sample		*/
+uint	idata w_sum=	0;		/* Sum of water level samples	*/
+byte	idata w_ll;			/* Low Level Setting: Scaled	*/
+byte	idata w_wl;			/* Water Low Threshold		*/
+byte	water_level;			/* Water level			*/
+
+bit	ce_sllev	( byte in )	/* Set Low Level		*/
+{
+uint	t;
+	if	(( in> 1 )& ( in< 20 ))	/* New Level in range		*/
+	{
+		t= l_set= in;		/* Set new value		*/
+		t*= 255- ADC_IMIN;	/* Scale to ADC			*/
+		t/= W_FS;		/* Scale to Unit ADC		*/
+		w_ll= t+ ADC_IMIN;	/* Set Low Level Lockout Thresh	*/
+		t= l_set+ W_T1;		/* Offset to Water low		*/
+		t*= 255- ADC_IMIN;	/* Scale to ADC			*/
+		t/= W_FS;		/* Scale to Unit ADC		*/
+		w_wl= t+ ADC_IMIN;	/* Set Water Low Threshold	*/
+		return	( 1 );
+	}
+	return	( 0 );			/* Error, not setting		*/
+}
+
+void	calc_level	( void )	/* Refresh Level Variable	*/
+{
+float	f;
+	if	( w_ave < ADC_IMIN )	/* Sensor error			*/
+		water_level= 0;		/* Set error value		*/
+	else
+	{
+		f= w_ave- ADC_IMIN;	/* Subtract offset		*/
+		f/= 255-ADC_IMIN;	/* Scale to unit		*/
+		f*= W_FS* 10;		/* Calibrate Full Scale 	*/
+		water_level=(byte) f;	/* Set global value		*/
+	}
+}
+
+void	p_water		( void )	/* Check Water condition	*/
+{
+	w_ave=	adc[W];			/* Get ADC value		*/
+	if	( w_ave< w_ll )		/* Is level below low level	*/
+		w_tot++;		/* Notch one up			*/
+	if	( ++w_cnt== W_CNT )	/* Full set of samples		*/
+	{
+		if	( w_tot> W_SH )/* Low level count high		*/
+		{
+			ce_lll=	1;	/* Set Low Level Lockout Flag	*/
+			a_stat|= A_LL;	/* Switch on alarm flag		*/
+		}
+		else
+		{
+			if ( w_tot< W_SL )	/* Low level count low	*/
+				a_stat&= ~A_LL;	/* Reset alarm		*/
+		}
+		w_cnt=w_tot=0;		/* Reset count, sum		*/
+	}
+}

@@ -1,0 +1,17 @@
+######################################################
+#
+#    compile the Flow make Flow program
+#
+######################################################
+
+#SHELL= /bin/sh
+
+#INC = $(INCLUDE)/msg.h
+#LIBRARAY =
+
+Flow : Flow.c
+	echo
+	cc -g -Zi -lx Flow.c -lm -o $@ 
+	cp Flow.c $TEST
+	cp Flow $TEST
+	cp Flow ../bin
